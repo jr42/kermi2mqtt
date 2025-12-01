@@ -1,0 +1,93 @@
+# kermi2mqtt Configuration Example
+# Copy this file to config.yaml and adjust for your installation
+
+# Modbus connection to Kermi heat pump
+modbus:
+  # Modbus TCP (default, recommended)
+  host: 192.168.1.100  # Replace with your heat pump's IP address
+  port: 502
+  mode: tcp
+
+  # Note: UniversalModule (Unit 30) is optional - not all devices have this component
+  # The integration will auto-detect available devices (HeatPump, StorageSystem)
+
+  # Modbus RTU (advanced, requires serial connection)
+  # Uncomment and configure if using RTU:
+  # mode: rtu
+  # device: /dev/ttyUSB0
+  # baudrate: 9600
+  # parity: N
+  # stopbits: 1
+
+# MQTT broker connection
+mqtt:
+  host: localhost
+  port: 1883
+  # username: your_mqtt_username  # Optional
+  # password: your_mqtt_password  # Optional
+
+  # TLS/SSL (optional)
+  tls_enabled: false  # Set to true for encrypted connection (port 8883)
+  # tls_insecure: false  # Set to true to disable certificate verification (NOT recommended)
+  # ca_certs: /path/to/ca.crt  # Path to CA certificate (optional)
+  # certfile: /path/to/client.crt  # Path to client certificate (optional)
+  # keyfile: /path/to/client.key  # Path to client private key (optional)
+
+# Integration settings
+integration:
+  # Device identifier (optional - auto-detected from heat pump if not set)
+  # If not specified, will attempt to derive from Modbus connection
+  device_id: my_heat_pump
+
+  # MQTT topic prefix
+  base_topic: kermi
+  # Results in topics like: kermi/my_heat_pump/sensors/outdoor_temp
+
+  # Polling interval in seconds (default: 30)
+  # How often to read all sensors from the heat pump
+  poll_interval: 30.0
+
+  # Home Assistant MQTT discovery prefix (default: homeassistant)
+  # Only change if your Home Assistant uses a custom discovery prefix
+  ha_discovery_prefix: homeassistant
+
+  # Storage systems configuration (optional - auto-detected)
+  # Override auto-detection if needed for unusual installations
+  # storage_systems:
+  #   50:
+  #     purpose: heating    # heating | dhw | combined
+  #     name: "Floor Heating Buffer"
+  #   51:
+  #     purpose: dhw
+  #     name: "Hot Water Tank"
+
+# Logging configuration
+logging:
+  level: INFO  # DEBUG | INFO | WARNING | ERROR
+  # file: /app/logs/kermi2mqtt.log  # Optional: log to file
+
+# Safety settings (advanced)
+safety:
+  # Minimum interval between control commands (seconds)
+  # Prevents rapid repeated changes that could stress equipment
+  command_rate_limit: 60.0
+
+  # Enable safety validator (recommended: true)
+  # Validates all write commands against safe ranges
+  enable_validation: true
+
+# Advanced settings
+advanced:
+  # Reconnection settings
+  modbus_reconnect_delay: 2.0    # Initial delay (seconds)
+  modbus_max_reconnect_delay: 30.0
+  mqtt_reconnect_delay: 1.0
+  mqtt_max_reconnect_delay: 60.0
+
+  # MQTT QoS levels
+  mqtt_qos_state: 1      # QoS for state updates (0-2)
+  mqtt_qos_command: 1    # QoS for command topics (0-2)
+
+  # Retained messages
+  mqtt_retain_discovery: true   # Retain HA discovery messages
+  mqtt_retain_state: false      # Don't retain state messages (use availability instead)
