@@ -10,6 +10,7 @@ Handles:
 
 import argparse
 import asyncio
+import functools
 import logging
 import signal
 import sys
@@ -207,7 +208,7 @@ def main() -> int:
     asyncio.set_event_loop(loop)
 
     for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(sig, lambda s=sig: handle_signal(s))
+        loop.add_signal_handler(sig, functools.partial(handle_signal, sig))
 
     # Run bridge
     try:

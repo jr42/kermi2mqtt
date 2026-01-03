@@ -5,7 +5,7 @@ Kermi device wrapper - wraps py-kermi-xcenter device instances with metadata.
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from kermi2mqtt.models.datapoint import DeviceAttribute
 
@@ -20,6 +20,8 @@ class KermiDevice(BaseModel):
     - Auto-detection of purpose (heating vs DHW) via data inspection
     """
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     device_id: str = Field(..., description="Unique device identifier")
     device_type: str = Field(
         ..., description="Device type (heat_pump, storage_heating, storage_dhw)"
@@ -30,13 +32,10 @@ class KermiDevice(BaseModel):
         default_factory=list, description="All mapped attributes"
     )
     mqtt_base_topic: str = Field(..., description="Base MQTT topic for this device")
-    available: bool = Field(True, description="Current connection status")
-    last_poll: datetime | None = Field(None, description="When last successful poll completed")
-
-    class Config:
-        """Pydantic config."""
-
-        arbitrary_types_allowed = True  # Allow xcenter_instance
+    available: bool = Field(default=True, description="Current connection status")
+    last_poll: datetime | None = Field(
+        default=None, description="When last successful poll completed"
+    )
 
     def get_mqtt_topic(self, attribute: DeviceAttribute) -> str:
         """

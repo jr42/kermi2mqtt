@@ -5,7 +5,7 @@ Device attribute model - maps py-kermi-xcenter methods to MQTT topics.
 from enum import IntEnum
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DeviceAttribute(BaseModel):
@@ -17,6 +17,8 @@ class DeviceAttribute(BaseModel):
     - StorageSystem has 36 get_* methods
     - get_all_readable_values() returns complete dict for efficient polling
     """
+
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     device_class: str = Field(..., description="Device class name (HeatPump, StorageSystem)")
     method_name: str = Field(..., description="Method to call (e.g., get_outdoor_temperature)")
@@ -34,15 +36,9 @@ class DeviceAttribute(BaseModel):
         description="HA-specific config (unit, device_class, state_class, min, max, etc.)",
     )
     poll_interval: float | None = Field(
-        None, description="Override default poll interval for this attribute"
+        default=None, description="Override default poll interval for this attribute"
     )
     value_enum: type[IntEnum] | None = Field(
-        None,
+        default=None,
         description="Enum type for translating numeric values (e.g., HeatPumpStatus)",
     )
-
-    class Config:
-        """Pydantic config."""
-
-        frozen = True  # Immutable after creation
-        arbitrary_types_allowed = True  # Allow enum types

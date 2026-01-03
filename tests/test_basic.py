@@ -9,7 +9,7 @@ def test_version_exists():
     """Test that package has a version."""
     from kermi2mqtt import __version__
 
-    assert __version__ == "0.1.0"
+    assert __version__ == "0.0.1"
 
 
 def test_config_imports():

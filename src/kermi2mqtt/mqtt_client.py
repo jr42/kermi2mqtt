@@ -15,7 +15,7 @@ import asyncio
 import json
 import logging
 import ssl
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 import aiomqtt
@@ -59,7 +59,7 @@ class MQTTClient:
         self._max_reconnect_delay = advanced_config.mqtt_max_reconnect_delay
 
         # Command subscription (User Story 2)
-        self._command_callback: Callable[[str, str], None] | None = None
+        self._command_callback: Callable[[str, str], Awaitable[None]] | None = None
         self._message_listener_task: asyncio.Task | None = None
 
     async def __aenter__(self) -> "MQTTClient":
@@ -231,7 +231,7 @@ class MQTTClient:
     async def subscribe(
         self,
         topic: str,
-        callback: Callable[[str, str], None],
+        callback: Callable[[str, str], Awaitable[None]],
     ) -> None:
         """
         Subscribe to a topic and call callback on messages.
@@ -254,7 +254,10 @@ class MQTTClient:
             # Start message listener task
             async for message in self.client.messages:
                 topic_str = str(message.topic)
-                payload_str = message.payload.decode()
+                payload = message.payload
+                payload_str = (
+                    payload.decode() if isinstance(payload, (bytes, bytearray)) else str(payload)
+                )
                 logger.debug(f"Received message on {topic_str}: {payload_str}")
 
                 # Call callback (note: callback should be async)
@@ -268,7 +271,7 @@ class MQTTClient:
     async def subscribe_commands(
         self,
         base_topic: str,
-        callback: Callable[[str, str], None],
+        callback: Callable[[str, str], Awaitable[None]],
     ) -> None:
         """
         Subscribe to command topics and start message listener.
@@ -325,7 +328,10 @@ class MQTTClient:
         try:
             async for message in self.client.messages:
                 topic_str = str(message.topic)
-                payload_str = message.payload.decode()
+                payload = message.payload
+                payload_str = (
+                    payload.decode() if isinstance(payload, (bytes, bytearray)) else str(payload)
+                )
 
                 logger.info(f"📩 MQTT message received: {topic_str} = {payload_str}")
 
