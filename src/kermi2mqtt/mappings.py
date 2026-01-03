@@ -8,6 +8,14 @@ Based on research findings (research.md section 2b):
 - StorageSystem: 36 get_* methods
 """
 
+from kermi_xcenter.types import (
+    EnergyMode,
+    HeatingCircuitStatus,
+    HeatPumpStatus,
+    OperatingMode,
+    SeasonSelection,
+)
+
 from kermi2mqtt.models.datapoint import DeviceAttribute
 
 # =============================================================================
@@ -181,7 +189,9 @@ HEAT_PUMP_ATTRIBUTES = [
         ha_component="sensor",
         ha_config={
             "icon": "mdi:state-machine",
+            "entity_category": "diagnostic",
         },
+        value_enum=HeatPumpStatus,
     ),
     DeviceAttribute(
         device_class="HeatPump",
@@ -205,6 +215,7 @@ HEAT_PUMP_ATTRIBUTES = [
             "device_class": "duration",
             "unit_of_measurement": "h",
             "state_class": "total_increasing",
+            "entity_category": "diagnostic",  # Maintenance metric - technical sensor
         },
     ),
     DeviceAttribute(
@@ -218,6 +229,7 @@ HEAT_PUMP_ATTRIBUTES = [
             "device_class": "duration",
             "unit_of_measurement": "h",
             "state_class": "total_increasing",
+            "entity_category": "diagnostic",  # Maintenance metric - technical sensor
         },
     ),
     # PV modulation (read-only for MVP)
@@ -265,6 +277,7 @@ STORAGE_SYSTEM_ATTRIBUTES = [
             "device_class": "temperature",
             "unit_of_measurement": "°C",
             "state_class": "measurement",
+            "entity_category": "diagnostic",  # Buffer temp - technical measurement
         },
     ),
     DeviceAttribute(
@@ -278,6 +291,7 @@ STORAGE_SYSTEM_ATTRIBUTES = [
             "device_class": "temperature",
             "unit_of_measurement": "°C",
             "state_class": "measurement",
+            "entity_category": "diagnostic",  # Outdoor sensor - used for calculations
         },
     ),
     DeviceAttribute(
@@ -355,7 +369,9 @@ STORAGE_SYSTEM_ATTRIBUTES = [
         ha_component="sensor",
         ha_config={
             "icon": "mdi:state-machine",
+            "entity_category": "diagnostic",
         },
+        value_enum=HeatingCircuitStatus,
     ),
     DeviceAttribute(
         device_class="StorageSystem",
@@ -366,7 +382,9 @@ STORAGE_SYSTEM_ATTRIBUTES = [
         ha_component="sensor",
         ha_config={
             "icon": "mdi:cog",
+            "entity_category": "diagnostic",
         },
+        value_enum=OperatingMode,
     ),
     # Hot water
     DeviceAttribute(
@@ -433,6 +451,31 @@ STORAGE_SYSTEM_ATTRIBUTES = [
             "icon": "mdi:snowflake",
         },
     ),
+    # Mode and Status sensors (readable current state)
+    DeviceAttribute(
+        device_class="StorageSystem",
+        method_name="season_selection_manual",
+        friendly_name="Season Selection (Current)",
+        mqtt_topic_suffix="sensors/season_selection",
+        writable=False,
+        ha_component="sensor",
+        ha_config={
+            "icon": "mdi:calendar-range",
+        },
+        value_enum=SeasonSelection,  # Maps numeric value to enum name
+    ),
+    DeviceAttribute(
+        device_class="StorageSystem",
+        method_name="heating_circuit_energy_mode",
+        friendly_name="Energy Mode (Current)",
+        mqtt_topic_suffix="sensors/energy_mode",
+        writable=False,
+        ha_component="sensor",
+        ha_config={
+            "icon": "mdi:leaf",
+        },
+        value_enum=EnergyMode,  # Maps numeric value to enum name
+    ),
     # Season modes
     DeviceAttribute(
         device_class="StorageSystem",
@@ -457,7 +500,71 @@ STORAGE_SYSTEM_ATTRIBUTES = [
             "device_class": "duration",
             "unit_of_measurement": "h",
             "state_class": "total_increasing",
+            "entity_category": "diagnostic",  # Maintenance metric - technical sensor
         },
+    ),
+    # =============================================================================
+    # Control Attributes (User Story 2 - Writable)
+    # =============================================================================
+    # Hot Water Control (DHW - Unit 51)
+    DeviceAttribute(
+        device_class="StorageSystem",
+        method_name="set_hot_water_setpoint_constant",
+        friendly_name="Hot Water Setpoint",
+        mqtt_topic_suffix="controls/hot_water_setpoint",
+        writable=True,
+        ha_component="number",
+        ha_config={
+            "device_class": "temperature",
+            "unit_of_measurement": "°C",
+            "min": 40.0,  # Legionella safety
+            "max": 60.0,  # Scalding prevention
+            "step": 0.5,
+            "mode": "slider",
+        },
+    ),
+    # One-Time Heating Button
+    DeviceAttribute(
+        device_class="StorageSystem",
+        method_name="set_hot_water_single_charge_active",
+        friendly_name="One-Time Heating",
+        mqtt_topic_suffix="controls/one_time_heating",
+        writable=True,
+        ha_component="button",
+        ha_config={
+            "icon": "mdi:water-boiler",
+        },
+    ),
+    # Season Selection (Manual Override)
+    DeviceAttribute(
+        device_class="StorageSystem",
+        method_name="set_season_selection_manual",
+        friendly_name="Season Selection",
+        mqtt_topic_suffix="controls/season_selection",
+        writable=True,
+        ha_component="select",
+        ha_config={
+            "icon": "mdi:calendar-range",
+            # Options match the transformed lowercase values published by bridge.py
+            "options": ["auto", "heat", "cool", "off"],
+        },
+        value_enum=SeasonSelection,  # Maps 0-3 to enum
+    ),
+    # Energy Mode (Eco/Normal/Comfort)
+    DeviceAttribute(
+        device_class="StorageSystem",
+        method_name="set_heating_circuit_energy_mode",
+        friendly_name="Energy Mode",
+        mqtt_topic_suffix="controls/energy_mode",
+        writable=True,
+        ha_component="select",
+        ha_config={
+            "icon": "mdi:leaf",
+            # Options match the transformed lowercase values published by bridge.py
+            # Note: CUSTOM maps to 'comfort' so we don't include it as separate option
+            "options": ["away", "eco", "comfort", "boost"],
+        },
+        value_enum=EnergyMode,  # Maps 0-4 to enum
     ),
 ]
 

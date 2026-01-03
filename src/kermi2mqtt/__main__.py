@@ -51,6 +51,10 @@ def setup_logging(level: str, log_file: str | None = None) -> None:
     root_logger.setLevel(log_level)
     root_logger.addHandler(console_handler)
 
+    # Suppress noisy pymodbus logging
+    logging.getLogger("pymodbus").setLevel(logging.WARNING)
+    logging.getLogger("pymodbus.logging").setLevel(logging.WARNING)
+
     # File handler (optional)
     if log_file:
         log_path = Path(log_file)
@@ -101,7 +105,6 @@ async def run_bridge(config_path: str) -> int:
         mqtt_client = MQTTClient(
             mqtt_config=config.mqtt,
             advanced_config=config.advanced,
-            ha_discovery_prefix=config.integration.ha_discovery_prefix,
         )
 
         # Connect to both systems

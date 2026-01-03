@@ -47,6 +47,11 @@ integration:
   # How often to read all sensors from the heat pump
   poll_interval: 30.0
 
+  # Home Assistant MQTT auto-discovery (default: true)
+  # Set to false if using n8n, ioBroker, Node-RED, or other MQTT tools
+  # Note: State topics remain accessible regardless of this setting
+  ha_discovery_enabled: true
+
   # Home Assistant MQTT discovery prefix (default: homeassistant)
   # Only change if your Home Assistant uses a custom discovery prefix
   ha_discovery_prefix: homeassistant

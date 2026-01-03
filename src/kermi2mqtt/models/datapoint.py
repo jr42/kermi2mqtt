@@ -2,6 +2,7 @@
 Device attribute model - maps py-kermi-xcenter methods to MQTT topics.
 """
 
+from enum import IntEnum
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -37,8 +38,13 @@ class DeviceAttribute(BaseModel):
     poll_interval: float | None = Field(
         None, description="Override default poll interval for this attribute"
     )
+    value_enum: type[IntEnum] | None = Field(
+        None,
+        description="Enum type for translating numeric values (e.g., HeatPumpStatus)",
+    )
 
     class Config:
         """Pydantic config."""
 
         frozen = True  # Immutable after creation
+        arbitrary_types_allowed = True  # Allow enum types

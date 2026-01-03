@@ -74,6 +74,9 @@ class IntegrationConfig(BaseModel):
     poll_interval: float = Field(
         30.0, description="Polling interval in seconds", ge=10.0, le=300.0
     )
+    ha_discovery_enabled: bool = Field(
+        True, description="Enable Home Assistant MQTT discovery (disable for n8n/ioBroker/etc.)"
+    )
     ha_discovery_prefix: str = Field(
         "homeassistant", description="Home Assistant discovery prefix"
     )

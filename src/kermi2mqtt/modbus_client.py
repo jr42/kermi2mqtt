@@ -238,7 +238,20 @@ class ModbusClient:
 
         try:
             data = await device.get_all_readable_values()
+
+            # Check if data is empty or all reads failed
+            # kermi-xcenter doesn't raise exceptions on connection loss,
+            # it just returns empty dict and logs warnings
+            if not data:
+                logger.warning("Device returned empty data - connection may be lost")
+                self._connected = False
+                self.schedule_reconnect()
+                raise ConnectionError("Device returned no data - connection lost")
+
             return data
+        except ConnectionError:
+            # Re-raise ConnectionError (including our own from above)
+            raise
         except Exception as e:
             logger.error(f"Failed to read device data: {e}")
             self._connected = False

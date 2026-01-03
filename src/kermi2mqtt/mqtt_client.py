@@ -1,12 +1,14 @@
 """
-MQTT client wrapper for aiomqtt with Home Assistant discovery support.
+MQTT client wrapper for aiomqtt.
 
 Provides:
 - Async MQTT publish/subscribe
 - QoS handling for state and command topics
-- Home Assistant MQTT discovery protocol
+- Availability tracking
 - Automatic reconnection with exponential backoff
 - Clean shutdown handling
+
+Note: Home Assistant discovery is handled by the ha_discovery module.
 """
 
 import asyncio
@@ -18,7 +20,6 @@ from typing import Any, Callable
 import aiomqtt
 
 from kermi2mqtt.config import AdvancedConfig, MQTTConfig
-from kermi2mqtt.models.datapoint import DeviceAttribute
 from kermi2mqtt.models.device import KermiDevice
 
 logger = logging.getLogger(__name__)
@@ -26,20 +27,20 @@ logger = logging.getLogger(__name__)
 
 class MQTTClient:
     """
-    Async MQTT client wrapper with HA discovery support.
+    Async MQTT client wrapper.
 
     Handles:
     - Publishing device state updates
     - Subscribing to command topics
-    - Publishing HA discovery messages
     - Availability tracking
+
+    Note: HA discovery is handled separately by the ha_discovery module.
     """
 
     def __init__(
         self,
         mqtt_config: MQTTConfig,
         advanced_config: AdvancedConfig,
-        ha_discovery_prefix: str = "homeassistant",
     ):
         """
         Initialize MQTT client.
@@ -47,16 +48,18 @@ class MQTTClient:
         Args:
             mqtt_config: MQTT broker configuration
             advanced_config: Advanced settings (QoS, reconnect delays, retain)
-            ha_discovery_prefix: Home Assistant discovery prefix
         """
         self.mqtt_config = mqtt_config
         self.advanced_config = advanced_config
-        self.ha_discovery_prefix = ha_discovery_prefix
 
         self.client: aiomqtt.Client | None = None
         self._connected = False
         self._reconnect_delay = advanced_config.mqtt_reconnect_delay
         self._max_reconnect_delay = advanced_config.mqtt_max_reconnect_delay
+
+        # Command subscription (User Story 2)
+        self._command_callback: Callable[[str, str], None] | None = None
+        self._message_listener_task: asyncio.Task | None = None
 
     async def __aenter__(self) -> "MQTTClient":
         """Async context manager entry."""
@@ -226,90 +229,6 @@ class MQTTClient:
         await self.publish_state(topic, payload, retain=True)
         logger.info(f"Published availability for {device.device_id}: {payload}")
 
-    async def publish_discovery(
-        self,
-        device: KermiDevice,
-        attribute: DeviceAttribute,
-    ) -> None:
-        """
-        Publish Home Assistant MQTT discovery message for an attribute.
-
-        Args:
-            device: Device this attribute belongs to
-            attribute: Attribute to publish discovery for
-
-        Discovery topic format:
-        <discovery_prefix>/<component>/<device_id>/<object_id>/config
-
-        Example:
-        homeassistant/sensor/heat_pump/outdoor_temp/config
-        """
-        # Build discovery topic
-        # Extract object_id from mqtt_topic_suffix (e.g., "sensors/outdoor_temp" -> "outdoor_temp")
-        object_id = attribute.mqtt_topic_suffix.split("/")[-1]
-
-        discovery_topic = (
-            f"{self.ha_discovery_prefix}/"
-            f"{attribute.ha_component}/"
-            f"{device.device_id}/"
-            f"{object_id}/config"
-        )
-
-        # Build discovery payload
-        state_topic = device.get_mqtt_topic(attribute)
-        availability_topic = device.get_availability_topic()
-
-        payload = {
-            "name": attribute.friendly_name,
-            "state_topic": state_topic,
-            "availability_topic": availability_topic,
-            "unique_id": f"{device.device_id}_{object_id}",
-            "device": {
-                "identifiers": [device.device_id],
-                "name": f"Kermi {device.device_type.replace('_', ' ').title()}",
-                "manufacturer": "Kermi",
-                "model": device.device_type,
-            },
-        }
-
-        # Add HA-specific config (unit_of_measurement, device_class, state_class, etc.)
-        payload.update(attribute.ha_config)
-
-        # Publish with retain=True (discovery messages should be retained)
-        retain = self.advanced_config.mqtt_retain_discovery
-
-        try:
-            await self.client.publish(
-                discovery_topic,
-                payload=json.dumps(payload),
-                qos=self.advanced_config.mqtt_qos_state,
-                retain=retain,
-            )
-            logger.debug(f"Published discovery for {device.device_id}/{object_id}")
-
-        except Exception as e:
-            logger.error(f"Failed to publish discovery for {object_id}: {e}")
-            raise
-
-    async def publish_all_discovery(self, devices: list[KermiDevice]) -> None:
-        """
-        Publish discovery messages for all devices and their attributes.
-
-        Args:
-            devices: List of devices to publish discovery for
-        """
-        logger.info(f"Publishing Home Assistant discovery for {len(devices)} device(s)")
-
-        for device in devices:
-            logger.info(
-                f"Publishing {len(device.attributes)} discovery messages for {device.device_id}"
-            )
-
-            for attribute in device.attributes:
-                await self.publish_discovery(device, attribute)
-
-        logger.info("All discovery messages published")
-
     async def subscribe(
         self,
         topic: str,
@@ -346,3 +265,91 @@ class MQTTClient:
             logger.error(f"Error in subscription to {topic}: {e}")
             self._connected = False
             raise
+
+    async def subscribe_commands(
+        self,
+        base_topic: str,
+        callback: Callable[[str, str], None],
+    ) -> None:
+        """
+        Subscribe to command topics and start message listener.
+
+        Subscribes to: {base_topic}/#
+        Filters in handler for topics ending with: /controls/*/set
+
+        This flexible pattern works for both:
+        - {base_topic}/{device_type}/controls/{control_name}/set (no device_id)
+        - {base_topic}/{device_id}/{device_type}/controls/{control_name}/set (with device_id)
+
+        Args:
+            base_topic: Base MQTT topic (e.g., "kermi/xcenter")
+            callback: Async function called with (topic, payload) for commands
+
+        Raises:
+            ConnectionError: If not connected
+
+        Note: This method starts a background task that listens for messages.
+        The task will run until the client is disconnected.
+        """
+        if not self.client or not self._connected:
+            raise ConnectionError("Not connected to MQTT broker")
+
+        command_pattern = f"{base_topic}/#"
+        logger.info(f"Subscribing to command topics: {command_pattern}")
+
+        try:
+            await self.client.subscribe(command_pattern, qos=self.advanced_config.mqtt_qos_command)
+            self._command_callback = callback
+
+            # Start message listener task
+            self._message_listener_task = asyncio.create_task(self._message_listener())
+            logger.info("Command subscription active - message listener started")
+
+        except Exception as e:
+            logger.error(f"Failed to subscribe to commands: {e}")
+            self._connected = False
+            raise
+
+    async def _message_listener(self) -> None:
+        """
+        Internal message listener task.
+
+        Runs in background and dispatches incoming MQTT messages to callbacks.
+        Automatically stops when client is disconnected.
+        """
+        if not self.client:
+            logger.error("Cannot start message listener: no client")
+            return
+
+        logger.info("Message listener started")
+
+        try:
+            async for message in self.client.messages:
+                topic_str = str(message.topic)
+                payload_str = message.payload.decode()
+
+                logger.info(f"📩 MQTT message received: {topic_str} = {payload_str}")
+
+                # Handle command messages (topics ending with /set)
+                if topic_str.endswith("/set") and self._command_callback:
+                    logger.info(f"✓ Command message detected: {topic_str} = {payload_str}")
+                    logger.info(f"  Calling command handler...")
+                    try:
+                        await self._command_callback(topic_str, payload_str)
+                    except Exception as e:
+                        logger.error(
+                            f"Error in command callback for {topic_str}: {e}",
+                            exc_info=True
+                        )
+                        # Continue processing other messages
+                else:
+                    if not topic_str.endswith("/set"):
+                        logger.debug(f"  Ignoring (not a command - doesn't end with /set): {topic_str}")
+                    elif not self._command_callback:
+                        logger.warning(f"  Command callback not set! Topic: {topic_str}")
+
+        except asyncio.CancelledError:
+            logger.info("Message listener cancelled")
+        except Exception as e:
+            logger.error(f"Message listener error: {e}", exc_info=True)
+            self._connected = False

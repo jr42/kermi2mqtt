@@ -152,6 +152,85 @@ class SafetyValidator:
 
         return True, "OK"
 
+    # Static validation methods for control commands (User Story 2)
+
+    @staticmethod
+    def validate_dhw_temperature(temp: float) -> tuple[bool, str]:
+        """
+        Validate DHW setpoint (40-60°C for Legionella safety).
+
+        Args:
+            temp: Temperature in °C
+
+        Returns:
+            (is_valid, error_message) tuple
+        """
+        if not (40.0 <= temp <= 60.0):
+            return False, f"DHW temperature {temp}°C outside safe range [40.0, 60.0]°C"
+        return True, "OK"
+
+    @staticmethod
+    def validate_season_selection(value: str) -> tuple[bool, str]:
+        """
+        Validate season selection enum value.
+
+        Args:
+            value: Season selection string (AUTO, HEATING, COOLING, OFF)
+
+        Returns:
+            (is_valid, error_message) tuple
+        """
+        valid_seasons = ["AUTO", "HEATING", "COOLING", "OFF"]
+        if value not in valid_seasons:
+            return False, f"Invalid season '{value}', must be one of {valid_seasons}"
+        return True, "OK"
+
+    @staticmethod
+    def validate_energy_mode(value: str) -> tuple[bool, str]:
+        """
+        Validate energy mode enum value.
+
+        Args:
+            value: Energy mode string (OFF, ECO, NORMAL, COMFORT, CUSTOM)
+
+        Returns:
+            (is_valid, error_message) tuple
+        """
+        valid_modes = ["OFF", "ECO", "NORMAL", "COMFORT", "CUSTOM"]
+        if value not in valid_modes:
+            return False, f"Invalid energy mode '{value}', must be one of {valid_modes}"
+        return True, "OK"
+
+    @staticmethod
+    def validate_heating_curve_offset(offset: float) -> tuple[bool, str]:
+        """
+        Validate heating curve offset (-5 to +5 K).
+
+        Args:
+            offset: Offset in Kelvin
+
+        Returns:
+            (is_valid, error_message) tuple
+        """
+        if not (-5.0 <= offset <= 5.0):
+            return False, f"Heating curve offset {offset}K outside range [-5.0, +5.0]K"
+        return True, "OK"
+
+    @staticmethod
+    def validate_season_threshold(temp: float) -> tuple[bool, str]:
+        """
+        Validate season threshold temperature (0-50°C).
+
+        Args:
+            temp: Temperature in °C
+
+        Returns:
+            (is_valid, error_message) tuple
+        """
+        if not (0.0 <= temp <= 50.0):
+            return False, f"Season threshold {temp}°C outside range [0.0, 50.0]°C"
+        return True, "OK"
+
 
 # Pre-configured validators for known safe parameters
 def create_dhw_validator() -> SafetyValidator:

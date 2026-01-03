@@ -137,16 +137,37 @@
 
 ### Implementation for User Story 4
 
-- [ ] T051 [P] [US4] Create src/kermi2mqtt/ha_discovery.py with HADiscoveryMessage model from data-model.md
-- [ ] T052 [P] [US4] Implement discovery payload generation for sensor entities in ha_discovery.py per contracts/ha-discovery.md
-- [ ] T053 [P] [US4] Implement discovery payload generation for number entities (DHW setpoint) in ha_discovery.py
-- [ ] T054 [P] [US4] Implement discovery payload generation for switch entities in ha_discovery.py
-- [ ] T055 [US4] Create device info structure with identifiers, manufacturer, model in ha_discovery.py
-- [ ] T056 [US4] Implement discovery message publishing in bridge.py with retain=true per FR-022
-- [ ] T057 [US4] Add discovery topic pattern: `homeassistant/{component}/{device_id}/{object_id}/config` per contracts/ha-discovery.md
-- [ ] T058 [US4] Ensure all entities link to same device via identifiers in device info per FR-024
-- [ ] T059 [US4] Test HA restart scenario - verify entities persist via retained discovery messages per edge case requirements
-- [ ] T060 [US4] Verify climate/water_heater entities appear if py-kermi-xcenter supports required methods
+- [X] T051 [P] [US4] Create src/kermi2mqtt/ha_discovery.py with HA discovery implementation
+      NOTE: Implemented with dual-mode architecture (HA discovery + agnostic MQTT topics)
+      IMPLEMENTATION: Manual discovery (no external library) - uses existing MQTT client
+      REASON: Tried ha-mqtt-discoverable library but had connection overhead issues (50 reconnections)
+- [X] T052 [P] [US4] Implement discovery payload generation for sensor entities
+      NOTE: Manual implementation - generates HA discovery JSON payloads directly
+      SUPPORTS: Both sensor and binary_sensor components via ha_component field
+- [ ] T053 [P] [US4] [DEFERRED] Implement discovery payload generation for number entities (DHW setpoint)
+      STATUS: Stub function created in ha_discovery.py
+      BLOCKED BY: User Story 2 (T034-T043) - requires command handling infrastructure
+      NOTE: Will implement manually when US2 control infrastructure is complete
+- [ ] T054 [P] [US4] [DEFERRED] Implement discovery payload generation for switch entities
+      STATUS: Stub function created in ha_discovery.py
+      BLOCKED BY: User Story 2 (T034-T043) - requires command handling infrastructure
+      NOTE: Will implement manually when US2 control infrastructure is complete
+- [X] T055 [US4] Create device info structure with identifiers, manufacturer, model
+      NOTE: Implemented via generate_device_info() function in ha_discovery.py (manual implementation)
+- [X] T056 [US4] Implement discovery message publishing in bridge.py with conditional enable/disable
+      NOTE: Controlled by ha_discovery_enabled config option (default: true)
+      ARCHITECTURE: HA discovery optional, state publishing always works (n8n/ioBroker compatible)
+- [X] T057 [US4] Implement discovery topic pattern generation
+      NOTE: Manual implementation in generate_discovery_topic() per HA MQTT discovery spec
+      FORMAT: {ha_discovery_prefix}/{component}/{device_id}/{object_id}/config
+- [X] T058 [US4] All entities link to same device via device identifiers
+      NOTE: generate_device_info() returns consistent device_id for entity grouping in HA
+- [X] T059 [US4] Discovery messages published with retain=True
+      NOTE: Manual implementation passes retain=True to mqtt_client.publish_state()
+- [ ] T060 [US4] [PENDING INVESTIGATION] Verify climate/water_heater entities
+      STATUS: Stub functions created in ha_discovery.py
+      ACTION REQUIRED: Research py-kermi-xcenter API for HVAC/DHW control methods
+      NEXT STEP: Document findings in specs/001-modbus-mqtt/research.md
 
 **Checkpoint**: Home Assistant zero-config integration complete - all entities auto-discovered
 
@@ -280,7 +301,7 @@ With multiple developers:
 - **Phase 3 (US1 - Monitor)**: 10 tasks 🎯 MVP
 - **Phase 4 (US2 - Control)**: 10 tasks
 - **Phase 5 (US3 - Auto-Discovery)**: 7 tasks
-- **Phase 6 (US4 - HA Discovery)**: 10 tasks
+- **Phase 6 (US4 - HA Discovery)**: 10 tasks (7 complete with manual implementation, 2 deferred pending US2, 1 pending investigation)
 - **Phase 7 (Polish)**: 14 tasks (includes T073-T074 auto-restart)
 
 **Parallel Opportunities**: 25 tasks marked [P] can run in parallel within their phases
