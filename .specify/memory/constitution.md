@@ -1,50 +1,117 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+SYNC IMPACT REPORT
+==================
+Version Change: 1.0.0 → 1.1.0
+Rationale: MINOR bump - Added new core principle (Safety) to protect heat pump hardware
+
+Modified Principles: None
+
+Added Sections:
+- Core Principles: IV. Safety (NON-NEGOTIABLE)
+
+Removed Sections: None
+
+Templates Status:
+- ✅ .specify/templates/spec-template.md: Reviewed - compatible
+- ✅ .specify/templates/plan-template.md: Reviewed - constitution check section present
+- ✅ .specify/templates/tasks-template.md: Reviewed - compatible structure
+- ✅ All command files: Reviewed - no agent-specific references found
+
+Follow-up TODOs: None
+-->
+
+# kermi2mqtt Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Reliability (NON-NEGOTIABLE)
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+The system MUST maintain stable operation for continuous IoT/home automation usage. This means:
+- Service MUST handle network interruptions gracefully
+- Polling cycles MUST recover from transient failures without manual intervention
+- MQTT connections MUST implement automatic reconnection with exponential backoff
+- State changes MUST be persisted to survive service restarts where appropriate
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+**Rationale**: As a home automation integration, users depend on kermi2mqtt for critical heating control. Downtime or data loss directly impacts comfort and energy management.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### II. Simplicity
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+Code and architecture MUST remain straightforward and maintainable:
+- Favor direct solutions over abstractions unless complexity is justified
+- Dependencies MUST be minimized - only include libraries that provide clear value
+- Configuration MUST be simple with sensible defaults
+- Avoid premature optimization or generalization
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+**Rationale**: Simplicity reduces bugs, eases troubleshooting, and allows contributors to understand and modify the codebase quickly. IoT integrations should be approachable for community maintenance.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### III. Efficiency
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+The system MUST operate reliably on resource-constrained single-board computers (SBCs):
+- Memory footprint MUST be minimal (target: <100MB RSS under typical load)
+- CPU usage during polling cycles MUST be low (target: <5% average on Raspberry Pi 3)
+- Network requests MUST be optimized to reduce API calls to Kermi services
+- Startup time MUST be fast (<10 seconds to first MQTT publish)
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+**Rationale**: Many users run home automation on low-power devices like Raspberry Pi. The service must coexist with other containers/services without resource contention.
+
+### IV. Safety (NON-NEGOTIABLE)
+
+The system MUST NOT expose settings or controls that could damage the heat pump hardware:
+- Low-level system parameters MUST NOT be exposed (e.g., pressure, compressor settings, refrigerant controls)
+- Only user-facing settings MUST be accessible via MQTT (e.g., temperature setpoints, operating modes, schedules)
+- Write operations MUST be limited to safe, manufacturer-approved adjustments
+- Read-only access MUST be provided for diagnostic parameters that should not be modified
+- Documentation MUST clearly indicate which settings are safe for user modification
+
+**Rationale**: Heat pumps are expensive, safety-critical equipment. Incorrect adjustment of low-level parameters (pressure, compressor speeds, refrigerant flow) can cause physical damage, void warranties, or create safety hazards. The integration must act as a protective barrier, exposing only the settings that Kermi's own user interfaces would allow homeowners to modify.
+
+## Development Standards
+
+### Code Quality
+
+- All code MUST pass linting and formatting checks before commit
+- Public functions and modules MUST include docstrings explaining purpose and parameters
+- Error messages MUST be actionable (tell users what went wrong and how to fix it)
+- Logging MUST use appropriate levels (DEBUG for traces, INFO for state changes, ERROR for failures)
+
+### Observability
+
+- All external API calls MUST be logged with timing information
+- MQTT publish/subscribe operations MUST be logged at INFO level
+- Health check endpoints or status reporting MUST be provided
+- Metrics collection (optional) should be supported for advanced users
+
+### Testing Requirements
+
+- Core polling logic MUST have unit tests
+- MQTT message formatting MUST have unit tests
+- Integration tests are RECOMMENDED for critical user journeys
+- Test coverage requirements are NOT mandated but encouraged for complex logic
+- Tests SHOULD mock external dependencies (Kermi API, MQTT broker)
+
+**Note**: Given the IoT integration nature, comprehensive test coverage may be challenging. Focus testing on business logic rather than I/O boundaries.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+### Amendment Process
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+1. Constitution changes MUST be documented in this file
+2. Version MUST be bumped according to semantic versioning:
+   - MAJOR: Backward-incompatible principle changes
+   - MINOR: New principles or material expansions
+   - PATCH: Clarifications, wording improvements
+3. Constitution changes SHOULD be reviewed by maintainers if project has multiple contributors
+4. After amendment, dependent templates MUST be validated for consistency
+
+### Compliance
+
+- Pull requests SHOULD reference constitution principles when making architectural decisions
+- Complex features MUST justify any deviations from simplicity principle
+- Performance-impacting changes MUST consider efficiency principle and document resource usage
+- Features exposing heat pump controls MUST demonstrate compliance with safety principle
+
+### Living Document
+
+This constitution is intended to evolve with the project. If principles become outdated or new concerns emerge, amendments are encouraged rather than working around stated principles.
+
+**Version**: 1.1.0 | **Ratified**: 2025-11-25 | **Last Amended**: 2025-11-25
