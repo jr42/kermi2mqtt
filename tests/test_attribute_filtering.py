@@ -5,7 +5,6 @@ Tests the filtering rules that prevent publishing irrelevant sensors
 to MQTT and Home Assistant.
 """
 
-
 from kermi2mqtt.bridge import _should_publish_attribute
 from kermi2mqtt.models.datapoint import DeviceAttribute
 
@@ -224,16 +223,20 @@ def test_all_heating_only_attributes():
         )
 
         # Should ALWAYS filter on DHW device (regardless of value)
-        assert not _should_publish_attribute("storage_dhw", attr, 0.0), \
+        assert not _should_publish_attribute("storage_dhw", attr, 0.0), (
             f"{method_name} with value 0.0 should be filtered on storage_dhw"
-        assert not _should_publish_attribute("storage_dhw", attr, 25.5), \
+        )
+        assert not _should_publish_attribute("storage_dhw", attr, 25.5), (
             f"{method_name} with non-zero value should be filtered on storage_dhw"
+        )
 
         # Should always publish on heating device (regardless of value)
-        assert _should_publish_attribute("storage_heating", attr, 0.0), \
+        assert _should_publish_attribute("storage_heating", attr, 0.0), (
             f"{method_name} with value 0.0 should publish on storage_heating"
-        assert _should_publish_attribute("storage_heating", attr, 25.5), \
+        )
+        assert _should_publish_attribute("storage_heating", attr, 25.5), (
             f"{method_name} with non-zero value should publish on storage_heating"
+        )
 
 
 def test_all_dhw_only_attributes():
@@ -256,16 +259,20 @@ def test_all_dhw_only_attributes():
         )
 
         # Should ALWAYS filter on heating device (regardless of value)
-        assert not _should_publish_attribute("storage_heating", attr, 0.0), \
+        assert not _should_publish_attribute("storage_heating", attr, 0.0), (
             f"{method_name} with value 0.0 should be filtered on storage_heating"
-        assert not _should_publish_attribute("storage_heating", attr, 48.0), \
+        )
+        assert not _should_publish_attribute("storage_heating", attr, 48.0), (
             f"{method_name} with non-zero value should be filtered on storage_heating"
+        )
 
         # Should always publish on DHW device (regardless of value)
-        assert _should_publish_attribute("storage_dhw", attr, 0.0), \
+        assert _should_publish_attribute("storage_dhw", attr, 0.0), (
             f"{method_name} with value 0.0 should publish on storage_dhw"
-        assert _should_publish_attribute("storage_dhw", attr, 48.0), \
+        )
+        assert _should_publish_attribute("storage_dhw", attr, 48.0), (
             f"{method_name} with non-zero value should publish on storage_dhw"
+        )
 
 
 def test_temperature_sanity_checks():
@@ -290,14 +297,18 @@ def test_temperature_sanity_checks():
     assert _should_publish_attribute("storage_heating", attr, 99.0)
 
     # Obviously wrong temperatures should be filtered
-    assert not _should_publish_attribute("storage_heating", attr, 5553.7), \
+    assert not _should_publish_attribute("storage_heating", attr, 5553.7), (
         "Temperature 5553.7°C should be filtered (clearly wrong)"
-    assert not _should_publish_attribute("storage_heating", attr, 150.0), \
+    )
+    assert not _should_publish_attribute("storage_heating", attr, 150.0), (
         "Temperature 150°C should be filtered (too hot)"
-    assert not _should_publish_attribute("storage_heating", attr, -100.0), \
+    )
+    assert not _should_publish_attribute("storage_heating", attr, -100.0), (
         "Temperature -100°C should be filtered (too cold)"
-    assert not _should_publish_attribute("storage_heating", attr, 1000.0), \
+    )
+    assert not _should_publish_attribute("storage_heating", attr, 1000.0), (
         "Temperature 1000°C should be filtered (way too hot)"
+    )
 
 
 def test_non_temperature_sensors_not_affected():

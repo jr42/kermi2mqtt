@@ -67,19 +67,13 @@ class StorageSystemConfig(BaseModel):
 class IntegrationConfig(BaseModel):
     """Integration behavior configuration."""
 
-    device_id: str | None = Field(
-        None, description="Device identifier (auto-detected if not set)"
-    )
+    device_id: str | None = Field(None, description="Device identifier (auto-detected if not set)")
     base_topic: str = Field("kermi", description="MQTT base topic prefix")
-    poll_interval: float = Field(
-        30.0, description="Polling interval in seconds", ge=10.0, le=300.0
-    )
+    poll_interval: float = Field(30.0, description="Polling interval in seconds", ge=10.0, le=300.0)
     ha_discovery_enabled: bool = Field(
         True, description="Enable Home Assistant MQTT discovery (disable for n8n/ioBroker/etc.)"
     )
-    ha_discovery_prefix: str = Field(
-        "homeassistant", description="Home Assistant discovery prefix"
-    )
+    ha_discovery_prefix: str = Field("homeassistant", description="Home Assistant discovery prefix")
     storage_systems: dict[int, StorageSystemConfig] = Field(
         default_factory=dict, description="Storage system configuration (optional)"
     )
@@ -88,21 +82,15 @@ class IntegrationConfig(BaseModel):
 class LoggingConfig(BaseModel):
     """Logging configuration."""
 
-    level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(
-        "INFO", description="Log level"
-    )
+    level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field("INFO", description="Log level")
     file: str | None = Field(None, description="Log file path (optional)")
 
 
 class SafetyConfig(BaseModel):
     """Safety settings."""
 
-    command_rate_limit: float = Field(
-        60.0, description="Minimum seconds between commands", ge=0.0
-    )
-    enable_validation: bool = Field(
-        True, description="Enable safety validation for writes"
-    )
+    command_rate_limit: float = Field(60.0, description="Minimum seconds between commands", ge=0.0)
+    enable_validation: bool = Field(True, description="Enable safety validation for writes")
 
 
 class AdvancedConfig(BaseModel):

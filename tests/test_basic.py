@@ -5,7 +5,6 @@ These tests verify the package structure and basic imports work correctly.
 """
 
 
-
 def test_version_exists():
     """Test that package has a version."""
     from kermi2mqtt import __version__

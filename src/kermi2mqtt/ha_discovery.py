@@ -53,15 +53,15 @@ DHW_ONLY_ATTRIBUTES = {
 # Controls to EXCLUDE from individual entity discovery
 # (they're handled by climate/water_heater entities instead)
 STORAGE_HEATING_EXCLUDED_CONTROLS = {
-    "season_selection",      # In climate entity (mode)
-    "energy_mode",           # In climate entity (preset)
-    "one_time_heating",      # Not applicable to floor heating
+    "season_selection",  # In climate entity (mode)
+    "energy_mode",  # In climate entity (preset)
+    "one_time_heating",  # Not applicable to floor heating
 }
 
 STORAGE_DHW_EXCLUDED_CONTROLS = {
-    "season_selection",      # In water_heater entity (not used for DHW)
-    "energy_mode",           # In water_heater entity (mode)
-    "hot_water_setpoint",    # In water_heater entity (temperature)
+    "season_selection",  # In water_heater entity (not used for DHW)
+    "energy_mode",  # In water_heater entity (mode)
+    "hot_water_setpoint",  # In water_heater entity (temperature)
     # NOTE: one_time_heating is KEPT as separate button
 }
 
@@ -354,10 +354,7 @@ def generate_discovery_topic(
     object_id = attribute.mqtt_topic_suffix.split("/")[-1]
 
     discovery_topic = (
-        f"{ha_discovery_prefix}/"
-        f"{attribute.ha_component}/"
-        f"{device.device_id}/"
-        f"{object_id}/config"
+        f"{ha_discovery_prefix}/{attribute.ha_component}/{device.device_id}/{object_id}/config"
     )
 
     return discovery_topic
@@ -455,9 +452,7 @@ async def publish_all_discovery(
                 continue
 
             try:
-                await publish_discovery_message(
-                    mqtt_client, device, attribute, ha_discovery_prefix
-                )
+                await publish_discovery_message(mqtt_client, device, attribute, ha_discovery_prefix)
                 total_published += 1
 
             except Exception as e:
@@ -482,9 +477,7 @@ async def publish_all_discovery(
         try:
             # Publish climate entity for storage_heating devices
             if device.device_type == "storage_heating":
-                climate_topic = (
-                    f"{ha_discovery_prefix}/climate/{device.device_id}/climate/config"
-                )
+                climate_topic = f"{ha_discovery_prefix}/climate/{device.device_id}/climate/config"
                 climate_payload = generate_climate_discovery_payload(device)
                 await mqtt_client.publish_state(
                     topic=climate_topic,
@@ -682,7 +675,7 @@ def generate_water_heater_discovery_payload(
         "mode_command_template": (
             "{% set modes = {'off': 'OFF', 'eco': 'ECO', 'performance': 'NORMAL', 'high_demand': 'COMFORT', 'heat_pump': 'CUSTOM'} %}"
             "{{ modes[value] if value in modes else 'NORMAL' }}"
-        )
+        ),
     }
 
     return payload

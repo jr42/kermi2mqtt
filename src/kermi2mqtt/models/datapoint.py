@@ -18,9 +18,7 @@ class DeviceAttribute(BaseModel):
     - get_all_readable_values() returns complete dict for efficient polling
     """
 
-    device_class: str = Field(
-        ..., description="Device class name (HeatPump, StorageSystem)"
-    )
+    device_class: str = Field(..., description="Device class name (HeatPump, StorageSystem)")
     method_name: str = Field(..., description="Method to call (e.g., get_outdoor_temperature)")
     friendly_name: str = Field(..., description="Human-readable name")
     mqtt_topic_suffix: str = Field(

@@ -25,9 +25,7 @@ class KermiDevice(BaseModel):
         ..., description="Device type (heat_pump, storage_heating, storage_dhw)"
     )
     unit_id: int = Field(..., description="Modbus unit ID (40, 50, 51, etc.)")
-    xcenter_instance: Any = Field(
-        ..., description="Actual py-kermi-xcenter device object"
-    )
+    xcenter_instance: Any = Field(..., description="Actual py-kermi-xcenter device object")
     attributes: list[DeviceAttribute] = Field(
         default_factory=list, description="All mapped attributes"
     )

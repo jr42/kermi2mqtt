@@ -83,9 +83,7 @@ class MQTTClient:
         Raises:
             ConnectionError: If connection fails
         """
-        logger.info(
-            f"Connecting to MQTT broker at {self.mqtt_config.host}:{self.mqtt_config.port}"
-        )
+        logger.info(f"Connecting to MQTT broker at {self.mqtt_config.host}:{self.mqtt_config.port}")
 
         try:
             # Configure TLS if enabled
@@ -339,8 +337,7 @@ class MQTTClient:
                         await self._command_callback(topic_str, payload_str)
                     except Exception as e:
                         logger.error(
-                            f"Error in command callback for {topic_str}: {e}",
-                            exc_info=True
+                            f"Error in command callback for {topic_str}: {e}", exc_info=True
                         )
                         # Continue processing other messages
                 elif not topic_str.endswith("/set"):

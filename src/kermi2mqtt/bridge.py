@@ -239,9 +239,7 @@ class ModbusMQTTBridge:
         """
         if not self.config.integration.ha_discovery_enabled:
             logger.info("Home Assistant discovery disabled - skipping")
-            logger.info(
-                "State publishing to MQTT topics will continue (works with any MQTT tool)"
-            )
+            logger.info("State publishing to MQTT topics will continue (works with any MQTT tool)")
             return
 
         logger.info("Publishing Home Assistant discovery messages...")
@@ -372,7 +370,7 @@ class ModbusMQTTBridge:
                                 "NORMAL": "comfort",
                                 "COMFORT": "boost",
                                 "OFF": "away",
-                                "CUSTOM": "heat_pump"  # Unique value for heat pump mode
+                                "CUSTOM": "heat_pump",  # Unique value for heat pump mode
                             }
                             payload = energy_mode_map.get(enum_name, enum_name.lower())
                         elif attribute.value_enum.__name__ == "SeasonSelection":
@@ -381,7 +379,7 @@ class ModbusMQTTBridge:
                                 "AUTO": "auto",
                                 "HEATING": "heat",
                                 "COOLING": "cool",
-                                "OFF": "off"
+                                "OFF": "off",
                             }
                             payload = season_map.get(enum_name, enum_name.lower())
                         else:
@@ -403,9 +401,7 @@ class ModbusMQTTBridge:
                 await self.mqtt.publish_state(topic, payload)
             else:
                 # Only log debug for missing values (some attributes may not always be present)
-                logger.debug(
-                    f"No data for {device.device_id}.{attribute.method_name}"
-                )
+                logger.debug(f"No data for {device.device_id}.{attribute.method_name}")
 
     async def handle_command(self, topic: str, payload: str) -> None:
         """
@@ -511,7 +507,7 @@ class ModbusMQTTBridge:
                         "auto": "AUTO",
                         "heat": "HEATING",
                         "cool": "COOLING",
-                        "off": "OFF"
+                        "off": "OFF",
                     }
                     enum_name = season_reverse_map.get(payload_clean)
                     if not enum_name:
@@ -538,10 +534,10 @@ class ModbusMQTTBridge:
                         "boost": "COMFORT",
                         "away": "OFF",
                         # Water heater modes (from water_heater entity)
-                        "performance": "NORMAL",   # Maps to NORMAL
+                        "performance": "NORMAL",  # Maps to NORMAL
                         "high_demand": "COMFORT",  # Maps to COMFORT
-                        "heat_pump": "CUSTOM",     # Maps to CUSTOM
-                        "off": "OFF"               # Maps to OFF
+                        "heat_pump": "CUSTOM",  # Maps to CUSTOM
+                        "off": "OFF",  # Maps to OFF
                     }
                     enum_name = energy_reverse_map.get(payload_clean)
                     if not enum_name:
