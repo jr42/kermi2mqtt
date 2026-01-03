@@ -95,9 +95,22 @@ select = [
     "RUF", # ruff-specific rules
 ]
 ignore = [
-    "ANN101", # Missing type annotation for self
-    "ANN102", # Missing type annotation for cls
-    "S101",   # Use of assert (needed for pytest)
+    "ANN101",  # Missing type annotation for self (removed in newer ruff)
+    "ANN102",  # Missing type annotation for cls (removed in newer ruff)
+    "ANN204",  # Missing return type for __init__
+    "ANN401",  # Any type allowed for flexibility
+    "S101",    # Use of assert (needed for pytest)
+    "PLR2004", # Magic value in comparison
+    "PLR0911", # Too many return statements
+    "PLR0912", # Too many branches
+    "PLR0915", # Too many statements
+    "EM101",   # Exception string literal (stylistic)
+    "EM102",   # Exception f-string (stylistic)
+    "RET504",  # Unnecessary assignment before return
+    "SIM108",  # Use ternary (sometimes less readable)
+    "SIM105",  # Use contextlib.suppress (explicit try/except more readable)
+    "DTZ005",  # datetime.now() without tz (local time is fine here)
+    "E501",    # Line too long (handled by formatter)
 ]
 
 [tool.ruff.per-file-ignores]

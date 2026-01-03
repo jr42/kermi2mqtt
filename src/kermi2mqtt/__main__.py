@@ -135,7 +135,7 @@ async def run_bridge(config_path: str) -> int:
             # Wait for bridge to finish
             try:
                 await asyncio.wait_for(bridge_task, timeout=10.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning("Bridge shutdown timed out")
                 bridge_task.cancel()
 

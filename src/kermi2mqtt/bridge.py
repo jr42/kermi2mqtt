@@ -24,8 +24,8 @@ from kermi2mqtt import ha_discovery
 from kermi2mqtt.config import Config
 from kermi2mqtt.mappings import get_heat_pump_attributes, get_storage_system_attributes
 from kermi2mqtt.modbus_client import ModbusClient
-from kermi2mqtt.models.device import KermiDevice
 from kermi2mqtt.models.datapoint import DeviceAttribute
+from kermi2mqtt.models.device import KermiDevice
 from kermi2mqtt.mqtt_client import MQTTClient
 from kermi2mqtt.safety import RateLimiter, SafetyValidator
 
@@ -299,7 +299,7 @@ class ModbusMQTTBridge:
                 await self._publish_device_state(device, device_data)
 
                 # Update last poll time
-                device.last_poll = datetime.now()
+                device.last_poll = datetime.now(tz=None)
 
             # Mark devices as available
             if not all(d.available for d in self.devices):
@@ -709,11 +709,11 @@ class ModbusMQTTBridge:
         base_topic = self.config.integration.base_topic
         subscription_pattern = f"{base_topic}/#"
         logger.info(f"Setting up MQTT command subscription to: {subscription_pattern}")
-        logger.info(f"Command handler will process topics ending with: /controls/*/set")
+        logger.info("Command handler will process topics ending with: /controls/*/set")
         try:
             await self.mqtt.subscribe_commands(base_topic, self.handle_command)
             logger.info(f"✓ Command subscription active - monitoring {subscription_pattern}")
-            logger.info(f"  Expected command topics:")
+            logger.info("  Expected command topics:")
             for device in self.devices:
                 logger.info(f"    - {device.mqtt_base_topic}/controls/*/set")
         except Exception as e:

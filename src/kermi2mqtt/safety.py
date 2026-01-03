@@ -9,7 +9,8 @@ Based on specs/001-modbus-mqtt/safety.md:
 """
 
 import time
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 
 class RangeValidator:

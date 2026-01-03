@@ -15,7 +15,8 @@ import asyncio
 import json
 import logging
 import ssl
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 import aiomqtt
 
@@ -333,7 +334,7 @@ class MQTTClient:
                 # Handle command messages (topics ending with /set)
                 if topic_str.endswith("/set") and self._command_callback:
                     logger.info(f"✓ Command message detected: {topic_str} = {payload_str}")
-                    logger.info(f"  Calling command handler...")
+                    logger.info("  Calling command handler...")
                     try:
                         await self._command_callback(topic_str, payload_str)
                     except Exception as e:
@@ -342,11 +343,10 @@ class MQTTClient:
                             exc_info=True
                         )
                         # Continue processing other messages
-                else:
-                    if not topic_str.endswith("/set"):
-                        logger.debug(f"  Ignoring (not a command - doesn't end with /set): {topic_str}")
-                    elif not self._command_callback:
-                        logger.warning(f"  Command callback not set! Topic: {topic_str}")
+                elif not topic_str.endswith("/set"):
+                    logger.debug(f"  Ignoring (not a command - doesn't end with /set): {topic_str}")
+                elif not self._command_callback:
+                    logger.warning(f"  Command callback not set! Topic: {topic_str}")
 
         except asyncio.CancelledError:
             logger.info("Message listener cancelled")

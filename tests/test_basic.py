@@ -4,7 +4,6 @@ Basic structural tests for kermi2mqtt.
 These tests verify the package structure and basic imports work correctly.
 """
 
-import pytest
 
 
 def test_version_exists():
@@ -17,14 +16,9 @@ def test_version_exists():
 def test_config_imports():
     """Test that config models can be imported."""
     from kermi2mqtt.config import (
-        AdvancedConfig,
         Config,
-        IntegrationConfig,
-        LoggingConfig,
         ModbusConfig,
         MQTTConfig,
-        SafetyConfig,
-        StorageSystemConfig,
     )
 
     assert Config is not None

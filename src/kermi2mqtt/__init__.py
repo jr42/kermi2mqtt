@@ -16,9 +16,9 @@ from kermi2mqtt.mqtt_client import MQTTClient
 
 __all__ = [
     "Config",
-    "load_config",
-    "ModbusClient",
     "MQTTClient",
+    "ModbusClient",
     "ModbusMQTTBridge",
     "__version__",
+    "load_config",
 ]

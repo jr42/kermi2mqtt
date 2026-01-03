@@ -5,7 +5,6 @@ Tests the filtering rules that prevent publishing irrelevant sensors
 to MQTT and Home Assistant.
 """
 
-import pytest
 
 from kermi2mqtt.bridge import _should_publish_attribute
 from kermi2mqtt.models.datapoint import DeviceAttribute

@@ -137,13 +137,12 @@ class ModbusClient:
                 elif data_51.get("heating_actual", 0) > 0:
                     self.storage_heating = storage_51
                     logger.info("Unit 51: Detected as heating circuit (heating_actual > 0)")
-                else:
-                    # Fallback to unit ID convention if both are 0
-                    if not self.storage_dhw:  # Only if not already assigned
-                        self.storage_dhw = storage_51
-                        logger.info(
-                            "Unit 51: Using as DHW (fallback - no active values)"
-                        )
+                # Fallback to unit ID convention if both are 0
+                elif not self.storage_dhw:  # Only if not already assigned
+                    self.storage_dhw = storage_51
+                    logger.info(
+                        "Unit 51: Using as DHW (fallback - no active values)"
+                    )
 
             except Exception as e:
                 logger.warning(f"Auto-detection failed, using unit ID convention: {e}")
