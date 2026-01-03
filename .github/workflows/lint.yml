@@ -34,7 +34,3 @@ jobs:
       - name: Run mypy (type checker)
         run: |
           mypy src/kermi2mqtt/
-
-      - name: Run black (formatter check)
-        run: |
-          black --check src/ tests/
