@@ -31,6 +31,9 @@ COPY --from=builder /build/dist/*.whl /tmp/
 RUN pip install --no-cache-dir /tmp/*.whl && \
     rm -rf /tmp/*.whl
 
+# Create health check marker (used by Kubernetes probes)
+RUN touch /tmp/healthy && chown kermi:kermi /tmp/healthy
+
 # Switch to non-root user
 USER kermi
 
@@ -40,9 +43,10 @@ VOLUME ["/config"]
 # Default environment
 ENV CONFIG_PATH=/config/config.yaml
 
-# Health check
+# Health check (for Docker standalone - Kubernetes uses probes instead)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import sys; sys.exit(0)"
+    CMD test -f /tmp/healthy
 
 # Entry point
-CMD ["kermi2mqtt", "--config", "/config/config.yaml"]
+ENTRYPOINT ["kermi2mqtt"]
+CMD ["--config", "/config/config.yaml"]

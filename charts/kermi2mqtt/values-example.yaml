@@ -1,0 +1,63 @@
+# Example values for kermi2mqtt
+# Copy this file and customize for your deployment
+
+# Image configuration
+image:
+  repository: ghcr.io/jr42/kermi2mqtt
+  tag: "0.1.0"
+
+# Resource limits (adjust based on your cluster)
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+# Kermi2mqtt configuration
+config:
+  logLevel: INFO
+
+  modbus:
+    # Your Kermi X-Center hostname or IP
+    host: "xcenter.local"
+    port: 502
+    mode: tcp
+
+  mqtt:
+    # Your MQTT broker
+    host: "mqtt.local"
+    port: 8883
+    tlsEnabled: true
+    tlsInsecure: false  # Set to true for self-signed certs
+    clientIdPrefix: kermi2mqtt
+    baseTopic: kermi
+
+  homeAssistant:
+    discoveryEnabled: true
+    discoveryPrefix: homeassistant
+
+  pollingInterval: 30
+
+# MQTT credentials
+mqttAuth:
+  create: true
+  username: "kermi"
+  password: "your-mqtt-password"
+
+# For using an existing secret instead:
+# mqttAuth:
+#   create: false
+#   existingSecret: "my-mqtt-credentials"
+#   usernameKey: username
+#   passwordKey: password
+
+# Optional: Set timezone
+# extraEnv:
+#   - name: TZ
+#     value: Europe/Berlin
+
+# Optional: Node selector for specific node
+# nodeSelector:
+#   kubernetes.io/hostname: my-iot-node

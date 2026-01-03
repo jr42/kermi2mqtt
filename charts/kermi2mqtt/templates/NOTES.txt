@@ -1,0 +1,31 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named: {{ .Release.Name }}
+Namespace: {{ .Release.Namespace }}
+
+CONFIGURATION:
+--------------
+Modbus Host: {{ .Values.config.modbus.host }}:{{ .Values.config.modbus.port }}
+MQTT Broker: {{ .Values.config.mqtt.host }}:{{ .Values.config.mqtt.port }}
+HA Discovery: {{ if .Values.config.homeAssistant.discoveryEnabled }}Enabled (prefix: {{ .Values.config.homeAssistant.discoveryPrefix }}){{ else }}Disabled{{ end }}
+Polling Interval: {{ .Values.config.pollingInterval }}s
+
+GETTING STARTED:
+----------------
+1. Check the pod status:
+   kubectl get pods -n {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "kermi2mqtt.name" . }},app.kubernetes.io/instance={{ .Release.Name }}"
+
+2. View the logs:
+   kubectl logs -n {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "kermi2mqtt.name" . }}" -f
+
+3. Check Home Assistant:
+   - Look for "Kermi X-Center" device in Settings > Devices & Services > MQTT
+   - You should see climate (Floor Heating), water_heater (Hot Water), and sensor entities
+
+TROUBLESHOOTING:
+----------------
+- If entities don't appear in HA, check MQTT broker connectivity
+- For Modbus errors, verify the X-Center is reachable on the network
+- Enable DEBUG logging by setting config.logLevel=DEBUG in values
+
+For more information, visit: {{ .Chart.Home }}

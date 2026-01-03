@@ -50,6 +50,21 @@ DHW_ONLY_ATTRIBUTES = {
     "hot_water_setpoint_constant",
 }
 
+# Controls to EXCLUDE from individual entity discovery
+# (they're handled by climate/water_heater entities instead)
+STORAGE_HEATING_EXCLUDED_CONTROLS = {
+    "season_selection",      # In climate entity (mode)
+    "energy_mode",           # In climate entity (preset)
+    "one_time_heating",      # Not applicable to floor heating
+}
+
+STORAGE_DHW_EXCLUDED_CONTROLS = {
+    "season_selection",      # In water_heater entity (not used for DHW)
+    "energy_mode",           # In water_heater entity (mode)
+    "hot_water_setpoint",    # In water_heater entity (temperature)
+    # NOTE: one_time_heating is KEPT as separate button
+}
+
 
 def _should_publish_attribute(
     device_type: str,
@@ -102,6 +117,17 @@ def _should_publish_attribute(
     if device_type == "storage_heating" and attribute.method_name in DHW_ONLY_ATTRIBUTES:
         return False
 
+    # RULE 1.7: Filter controls that are handled by climate/water_heater entities
+    # This avoids duplicating controls in HA UI
+    topic_suffix = attribute.mqtt_topic_suffix.split("/")[-1]
+    if device_type == "storage_heating" and topic_suffix in STORAGE_HEATING_EXCLUDED_CONTROLS:
+        logger.debug(f"Filtering {topic_suffix} - handled by climate entity")
+        return False
+
+    if device_type == "storage_dhw" and topic_suffix in STORAGE_DHW_EXCLUDED_CONTROLS:
+        logger.debug(f"Filtering {topic_suffix} - handled by water_heater entity")
+        return False
+
     # RULE 1: Always publish non-zero values (real data)
     if value not in (0.0, 0, False):
         return True
@@ -113,27 +139,34 @@ def _should_publish_attribute(
 def generate_device_info(device: KermiDevice) -> dict:
     """Generate Home Assistant device info dictionary.
 
-    This links all entities from the same physical device in HA's device registry.
+    Creates a UNIFIED device for all Kermi entities. This means:
+    - All heat_pump, storage_heating, storage_dhw entities appear under ONE device
+    - Cleaner UX in Home Assistant
+    - Technical MQTT separation is maintained (different topics per Modbus unit)
 
     Args:
-        device: Kermi device to generate info for
+        device: Kermi device (used to extract base identifier)
 
     Returns:
-        Device info dict with identifiers, name, manufacturer, model
+        Device info dict with unified identifiers, name, manufacturer, model
 
     Example:
         {
-            "identifiers": ["xcenter_heat_pump"],
-            "name": "Kermi Heat Pump",
+            "identifiers": ["kermi_xcenter"],
+            "name": "Kermi X-Center",
             "manufacturer": "Kermi",
-            "model": "heat_pump"
+            "model": "X-Center Heat Pump System"
         }
     """
+    # Extract base identifier (e.g., "xcenter" from "xcenter_heat_pump")
+    # Split on first underscore to get the system name
+    base_id = device.device_id.split("_", 1)[0] if "_" in device.device_id else device.device_id
+
     return {
-        "identifiers": [device.device_id],
-        "name": f"Kermi {device.device_type.replace('_', ' ').title()}",
+        "identifiers": [f"kermi_{base_id}"],
+        "name": "Kermi X-Center",
         "manufacturer": "Kermi",
-        "model": device.device_type,
+        "model": "X-Center Heat Pump System",
     }
 
 
@@ -547,7 +580,7 @@ def generate_climate_discovery_payload(
     action_topic = f"{device.mqtt_base_topic}/sensors/heating_circuit_status"
 
     payload = {
-        "name": f"Kermi {device.device_type.replace('_', ' ').title()} Climate",
+        "name": "Floor Heating",
         "unique_id": f"{device.device_id}_climate",
         "device": generate_device_info(device),
         # Current temperature (read-only)
@@ -619,7 +652,7 @@ def generate_water_heater_discovery_payload(
     mode_state_topic = f"{device.mqtt_base_topic}/sensors/energy_mode"
 
     payload = {
-        "name": f"Kermi {device.device_type.replace('_', ' ').title()} Water Heater",
+        "name": "Hot Water",
         "unique_id": f"{device.device_id}_water_heater",
         "device": generate_device_info(device),
         # Current temperature

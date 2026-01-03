@@ -523,11 +523,11 @@ STORAGE_SYSTEM_ATTRIBUTES = [
             "mode": "slider",
         },
     ),
-    # One-Time Heating Button
+    # One-Time Heating Button (manual hot water boost)
     DeviceAttribute(
         device_class="StorageSystem",
         method_name="set_hot_water_single_charge_active",
-        friendly_name="One-Time Heating",
+        friendly_name="Boost Hot Water",
         mqtt_topic_suffix="controls/one_time_heating",
         writable=True,
         ha_component="button",

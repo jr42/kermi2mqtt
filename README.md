@@ -1,6 +1,7 @@
 # kermi2mqtt
 
-[![Tests](https://github.com/yourusername/kermi2mqtt/actions/workflows/test.yml/badge.svg)](https://github.com/yourusername/kermi2mqtt/actions/workflows/test.yml)
+[![Tests](https://github.com/jr42/kermi2mqtt/actions/workflows/test.yml/badge.svg)](https://github.com/jr42/kermi2mqtt/actions/workflows/test.yml)
+[![Docker](https://github.com/jr42/kermi2mqtt/actions/workflows/docker.yaml/badge.svg)](https://github.com/jr42/kermi2mqtt/actions/workflows/docker.yaml)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 
@@ -8,12 +9,13 @@ Modbus-to-MQTT bridge for Kermi heat pumps with Home Assistant auto-discovery.
 
 ## Features
 
-✅ **Read-only monitoring** (MVP) - Monitor all heat pump sensors via MQTT
-🚧 **Bidirectional control** (Coming soon) - Change settings via MQTT
-🏠 **Home Assistant integration** - Zero-config auto-discovery
-🔒 **Safety-first** - Only exposes user-safe controls
-🐳 **Docker support** - Easy deployment on Raspberry Pi
-⚡ **Async/efficient** - Low resource usage (<50MB RAM)
+- **Full monitoring** - All heat pump sensors published via MQTT
+- **Bidirectional control** - Change settings (mode, preset, DHW temp) via MQTT
+- **Home Assistant integration** - Zero-config auto-discovery with climate & water_heater entities
+- **Unified device** - All entities grouped under single "Kermi X-Center" device in HA
+- **Safety-first** - Only exposes user-safe controls with validation
+- **Kubernetes ready** - Helm chart included for easy deployment
+- **Async/efficient** - Low resource usage (<50MB RAM)
 
 ## Quick Start
 
@@ -30,20 +32,53 @@ Modbus-to-MQTT bridge for Kermi heat pumps with Home Assistant auto-discovery.
 ```bash
 # Create config file
 cp config.example.yaml config.yaml
-# Edit config.yaml with your settings
+# Edit config.yaml with your Modbus and MQTT settings
 
-# Run with Docker Compose
+# Build and run
+docker build -t kermi2mqtt .
+docker run -d --name kermi2mqtt \
+  -v $(pwd)/config.yaml:/config/config.yaml:ro \
+  kermi2mqtt
+```
+
+Or with Docker Compose:
+
+```bash
 docker-compose up -d
 ```
 
-#### Option 2: Python Package
+#### Option 2: Kubernetes (Helm)
+
+```bash
+# Add your values
+cat > my-values.yaml << EOF
+config:
+  modbus:
+    host: "xcenter.local"
+    port: 502
+  mqtt:
+    host: "mqtt.local"
+    port: 8883
+    tlsEnabled: true
+mqttAuth:
+  username: "kermi"
+  password: "your-password"
+EOF
+
+# Install
+helm install kermi2mqtt ./charts/kermi2mqtt -f my-values.yaml
+```
+
+See [charts/kermi2mqtt/values.yaml](charts/kermi2mqtt/values.yaml) for all options.
+
+#### Option 3: Python Package
 
 ```bash
 # Install from PyPI
 pip install kermi2mqtt
 
 # Or install from source
-git clone https://github.com/yourusername/kermi2mqtt
+git clone https://github.com/jr42/kermi2mqtt
 cd kermi2mqtt
 pip install -e .
 ```
@@ -165,7 +200,7 @@ All entities are grouped under a single **Device** in Home Assistant.
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/kermi2mqtt
+git clone https://github.com/jr42/kermi2mqtt
 cd kermi2mqtt
 
 # Create virtual environment
@@ -196,7 +231,6 @@ black --check src/ tests/
 ```
 kermi2mqtt/
 ├── src/kermi2mqtt/           # Main package
-│   ├── __init__.py
 │   ├── __main__.py           # Entry point
 │   ├── config.py             # Configuration loading
 │   ├── modbus_client.py      # Modbus wrapper
@@ -204,12 +238,11 @@ kermi2mqtt/
 │   ├── bridge.py             # Main bridge logic
 │   ├── safety.py             # Safety validation
 │   ├── ha_discovery.py       # HA discovery payloads
+│   ├── mappings.py           # Attribute definitions
 │   └── models/               # Data models
-│       ├── datapoint.py
-│       ├── device.py
-│       └── attributes.py
+├── charts/kermi2mqtt/        # Helm chart for Kubernetes
 ├── tests/                    # Test suite
-├── specs/                    # Specification documents
+├── Dockerfile                # Container image
 └── config.example.yaml       # Example configuration
 ```
 

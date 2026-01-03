@@ -50,6 +50,9 @@ config.yaml
 docker-compose.yaml
 Dockerfile
 
+# Helm charts
+charts/
+
 # Misc
 .env
 *.db
