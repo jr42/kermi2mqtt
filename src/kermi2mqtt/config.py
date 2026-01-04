@@ -2,6 +2,7 @@
 Configuration loading and validation using Pydantic.
 """
 
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -121,6 +122,10 @@ def load_config(config_path: str | Path) -> Config:
     """
     Load and validate configuration from YAML file.
 
+    Environment variables can override MQTT credentials:
+    - MQTT_USERNAME: Override mqtt.username
+    - MQTT_PASSWORD: Override mqtt.password
+
     Args:
         config_path: Path to YAML configuration file
 
@@ -142,6 +147,15 @@ def load_config(config_path: str | Path) -> Config:
 
     if config_dict is None:
         raise ValueError(f"Empty configuration file: {config_path}")
+
+    # Apply environment variable overrides for MQTT credentials
+    if "mqtt" not in config_dict:
+        config_dict["mqtt"] = {}
+
+    if mqtt_username := os.environ.get("MQTT_USERNAME"):
+        config_dict["mqtt"]["username"] = mqtt_username
+    if mqtt_password := os.environ.get("MQTT_PASSWORD"):
+        config_dict["mqtt"]["password"] = mqtt_password
 
     try:
         return Config(**config_dict)

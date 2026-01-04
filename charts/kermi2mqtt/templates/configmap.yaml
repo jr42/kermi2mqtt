@@ -21,9 +21,7 @@ data:
       port: {{ .Values.config.mqtt.port }}
       tls_enabled: {{ .Values.config.mqtt.tlsEnabled }}
       tls_insecure: {{ .Values.config.mqtt.tlsInsecure }}
-      # Credentials loaded from environment variables
-      username: ${MQTT_USERNAME}
-      password: ${MQTT_PASSWORD}
+      # Credentials loaded from MQTT_USERNAME/MQTT_PASSWORD environment variables
       client_id_prefix: {{ .Values.config.mqtt.clientIdPrefix | quote }}
       base_topic: {{ .Values.config.mqtt.baseTopic | quote }}
 
