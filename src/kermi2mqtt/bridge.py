@@ -50,6 +50,8 @@ DHW_ONLY_ATTRIBUTES = {
     "hot_water_setpoint",
     "hot_water_actual",
     "hot_water_setpoint_constant",
+    "set_hot_water_setpoint_constant",  # Control method
+    "set_one_time_heating",  # DHW boost control
 }
 
 

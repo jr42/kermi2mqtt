@@ -73,10 +73,14 @@ config:
     tlsEnabled: false
     # -- Skip TLS certificate verification (for self-signed certs)
     tlsInsecure: false
-    # -- Client ID prefix
-    clientIdPrefix: kermi2mqtt
     # -- Base topic for all messages
     baseTopic: kermi
+
+  # -- Integration settings
+  integration:
+    # -- Device identifier for unique entity IDs (auto-detected from modbus host if not set)
+    # -- IMPORTANT: Set this to avoid duplicate entities in Home Assistant
+    deviceId: ""
 
   # -- Home Assistant integration
   homeAssistant:
