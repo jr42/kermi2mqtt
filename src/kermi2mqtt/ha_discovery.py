@@ -119,6 +119,12 @@ def _should_publish_attribute(
     if device_type == "storage_heating" and attribute.method_name in DHW_ONLY_ATTRIBUTES:
         return False
 
+    # RULE 1.6b: Filter DHW controls from storage_dhw individual discovery
+    # (they're handled by water_heater entity instead)
+    if device_type == "storage_dhw" and attribute.method_name == "set_hot_water_setpoint_constant":
+        logger.debug("Filtering set_hot_water_setpoint_constant - handled by water_heater entity")
+        return False
+
     # RULE 1.7: Filter controls that are handled by climate/water_heater entities
     # This avoids duplicating controls in HA UI
     topic_suffix = attribute.mqtt_topic_suffix.split("/")[-1]
