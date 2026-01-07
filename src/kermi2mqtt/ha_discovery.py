@@ -40,8 +40,10 @@ HEATING_ONLY_ATTRIBUTES = {
     "heating_circuit_operating_mode",
     "cooling_actual",
     "cooling_mode_active",
+    "summer_mode_active",  # Heating circuit concept - not relevant for DHW
     "t4_temperature",  # Outdoor sensor (T4) - physically on heating unit
     "outdoor_temperature_avg",  # Calculated outdoor average - on heating unit
+    "operating_hours_circuit_pump",  # Circuit pump is on heating unit
 }
 
 DHW_ONLY_ATTRIBUTES = {
@@ -61,6 +63,7 @@ STORAGE_HEATING_EXCLUDED_CONTROLS = {
     "heating_circuit_actual",  # In climate entity (current_temperature) - duplicate of heating_actual
     "heating_circuit_setpoint",  # Duplicate of heating_setpoint
     "heating_actual",  # In climate entity (current_temperature)
+    "heating_setpoint",  # In climate entity (target_temperature)
     "cooling_actual",  # Redundant with climate - same as heating_actual in cooling mode
     "summer_mode",  # Redundant - indicated by climate mode
     "cooling_active",  # Redundant - indicated by climate mode
@@ -82,6 +85,12 @@ HEAT_PUMP_HTTP_UNAVAILABLE = {
     "global_alarm",  # Not on Heat Pump via HTTP (use IFM.alarm_status instead)
     "operating_hours_compressor",  # Not exposed via HTTP API
     "operating_hours_fan",  # Not exposed via HTTP API
+}
+
+# StorageSystem attributes NOT available via HTTP API (Modbus-only)
+STORAGE_HTTP_UNAVAILABLE = {
+    "heating_circuit_status",  # Not exposed via HTTP API
+    "heating_circuit_operating_mode",  # Not exposed via HTTP API
 }
 
 
@@ -156,6 +165,11 @@ def _should_publish_attribute(
     # RULE 1.8: Filter Heat Pump attributes not available via HTTP API
     # (HTTP is the default, these would always show "Unknown")
     if device_type == "heat_pump" and attribute.method_name in HEAT_PUMP_HTTP_UNAVAILABLE:
+        logger.debug(f"Filtering {attribute.method_name} - not available via HTTP API")
+        return False
+
+    # RULE 1.9: Filter StorageSystem attributes not available via HTTP API
+    if device_type in ("storage_heating", "storage_dhw") and attribute.method_name in STORAGE_HTTP_UNAVAILABLE:
         logger.debug(f"Filtering {attribute.method_name} - not available via HTTP API")
         return False
 
@@ -782,6 +796,7 @@ def generate_climate_discovery_payload(
         is only available with Modbus. HTTP mode uses "heat" as fixed mode.
     """
     current_temp_topic = f"{device.mqtt_base_topic}/sensors/heating_circuit_actual"
+    target_temp_topic = f"{device.mqtt_base_topic}/sensors/heating_setpoint"
     preset_command_topic = f"{device.mqtt_base_topic}/controls/energy_mode/set"
     preset_state_topic = f"{device.mqtt_base_topic}/sensors/energy_mode"
 
@@ -791,6 +806,8 @@ def generate_climate_discovery_payload(
         "device": generate_device_info(device),
         # Current temperature (read-only)
         "current_temperature_topic": current_temp_topic,
+        # Target temperature (read-only - calculated from heating curve)
+        "temperature_state_topic": target_temp_topic,
         "temperature_unit": "C",
         # Preset modes (energy modes: ECO, NORMAL, COMFORT, OFF)
         # Note: CUSTOM is not exposed as HA doesn't allow 'none' as a preset mode

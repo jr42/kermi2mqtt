@@ -66,8 +66,10 @@ HEATING_ONLY_ATTRIBUTES = {
     "heating_circuit_operating_mode",
     "cooling_actual",
     "cooling_mode_active",
+    "summer_mode_active",  # Heating circuit concept - not relevant for DHW
     "t4_temperature",  # Outdoor sensor (T4) - physically on heating unit
     "outdoor_temperature_avg",  # Calculated outdoor average - on heating unit
+    "operating_hours_circuit_pump",  # Circuit pump is on heating unit
 }
 
 DHW_ONLY_ATTRIBUTES = {

@@ -50,6 +50,7 @@ HEAT_PUMP_ATTRIBUTES = [
             "unit_of_measurement": "°C",
             "state_class": "measurement",
         },
+        entity_category="diagnostic",
     ),
     DeviceAttribute(
         device_class="HeatPump",
@@ -63,6 +64,7 @@ HEAT_PUMP_ATTRIBUTES = [
             "unit_of_measurement": "°C",
             "state_class": "measurement",
         },
+        entity_category="diagnostic",
     ),
     DeviceAttribute(
         device_class="HeatPump",
@@ -76,6 +78,8 @@ HEAT_PUMP_ATTRIBUTES = [
             "unit_of_measurement": "°C",
             "state_class": "measurement",
         },
+        enabled_by_default=False,
+        entity_category="diagnostic",
     ),
     DeviceAttribute(
         device_class="HeatPump",
@@ -89,6 +93,8 @@ HEAT_PUMP_ATTRIBUTES = [
             "unit_of_measurement": "°C",
             "state_class": "measurement",
         },
+        enabled_by_default=False,
+        entity_category="diagnostic",
     ),
     # Power and COP
     DeviceAttribute(
@@ -153,6 +159,7 @@ HEAT_PUMP_ATTRIBUTES = [
         ha_config={
             "state_class": "measurement",
             "icon": "mdi:gauge",
+            "suggested_display_precision": 1,
         },
     ),
     DeviceAttribute(
@@ -165,6 +172,7 @@ HEAT_PUMP_ATTRIBUTES = [
         ha_config={
             "state_class": "measurement",
             "icon": "mdi:gauge",
+            "suggested_display_precision": 1,
         },
     ),
     DeviceAttribute(
@@ -177,6 +185,7 @@ HEAT_PUMP_ATTRIBUTES = [
         ha_config={
             "state_class": "measurement",
             "icon": "mdi:gauge",
+            "suggested_display_precision": 1,
         },
     ),
     # Status and runtime
@@ -470,8 +479,9 @@ STORAGE_SYSTEM_ATTRIBUTES = [
             "device_class": "temperature",
             "unit_of_measurement": "°C",
             "state_class": "measurement",
-            "entity_category": "diagnostic",  # Buffer temp - technical measurement
         },
+        enabled_by_default=False,
+        entity_category="diagnostic",
     ),
     DeviceAttribute(
         device_class="StorageSystem",
