@@ -50,6 +50,7 @@ HEAT_PUMP_ATTRIBUTES = [
             "unit_of_measurement": "°C",
             "state_class": "measurement",
         },
+        entity_category="diagnostic",
     ),
     DeviceAttribute(
         device_class="HeatPump",
@@ -63,6 +64,7 @@ HEAT_PUMP_ATTRIBUTES = [
             "unit_of_measurement": "°C",
             "state_class": "measurement",
         },
+        entity_category="diagnostic",
     ),
     DeviceAttribute(
         device_class="HeatPump",
@@ -76,6 +78,8 @@ HEAT_PUMP_ATTRIBUTES = [
             "unit_of_measurement": "°C",
             "state_class": "measurement",
         },
+        enabled_by_default=False,
+        entity_category="diagnostic",
     ),
     DeviceAttribute(
         device_class="HeatPump",
@@ -89,6 +93,8 @@ HEAT_PUMP_ATTRIBUTES = [
             "unit_of_measurement": "°C",
             "state_class": "measurement",
         },
+        enabled_by_default=False,
+        entity_category="diagnostic",
     ),
     # Power and COP
     DeviceAttribute(
@@ -153,6 +159,7 @@ HEAT_PUMP_ATTRIBUTES = [
         ha_config={
             "state_class": "measurement",
             "icon": "mdi:gauge",
+            "suggested_display_precision": 1,
         },
     ),
     DeviceAttribute(
@@ -165,6 +172,7 @@ HEAT_PUMP_ATTRIBUTES = [
         ha_config={
             "state_class": "measurement",
             "icon": "mdi:gauge",
+            "suggested_display_precision": 1,
         },
     ),
     DeviceAttribute(
@@ -177,6 +185,7 @@ HEAT_PUMP_ATTRIBUTES = [
         ha_config={
             "state_class": "measurement",
             "icon": "mdi:gauge",
+            "suggested_display_precision": 1,
         },
     ),
     # Status and runtime
@@ -189,7 +198,6 @@ HEAT_PUMP_ATTRIBUTES = [
         ha_component="sensor",
         ha_config={
             "icon": "mdi:state-machine",
-            "entity_category": "diagnostic",
         },
         value_enum=HeatPumpStatus,
     ),
@@ -232,23 +240,62 @@ HEAT_PUMP_ATTRIBUTES = [
             "entity_category": "diagnostic",  # Maintenance metric - technical sensor
         },
     ),
-    # PV modulation (read-only for MVP)
+    # ==========================================================================
+    # PV Modulation (py-kermi-xcenter 0.3.1+)
+    # ==========================================================================
+    # Status sensors
     DeviceAttribute(
         device_class="HeatPump",
-        method_name="pv_modulation_status",
+        method_name="pv_modulation_active",
         friendly_name="PV Modulation Active",
-        mqtt_topic_suffix="binary_sensors/pv_modulation",
+        mqtt_topic_suffix="binary_sensors/pv_modulation_active",
         writable=False,
         ha_component="binary_sensor",
+        ha_config={"icon": "mdi:solar-power"},
+    ),
+    DeviceAttribute(
+        device_class="HeatPump",
+        method_name="pv_modulation_enabled",
+        friendly_name="PV Modulation Enabled",
+        mqtt_topic_suffix="switches/pv_modulation_enabled",
+        writable=True,
+        ha_component="switch",
+        ha_config={"icon": "mdi:solar-power-variant"},
+    ),
+    # Power sensors
+    DeviceAttribute(
+        device_class="HeatPump",
+        method_name="pv_modulation_power",
+        friendly_name="PV Modulation Power",
+        mqtt_topic_suffix="sensors/pv_modulation_power",
+        writable=False,
+        ha_component="sensor",
         ha_config={
+            "device_class": "power",
+            "unit_of_measurement": "W",
+            "state_class": "measurement",
             "icon": "mdi:solar-power",
         },
     ),
     DeviceAttribute(
         device_class="HeatPump",
-        method_name="pv_modulation_power",
-        friendly_name="PV Modulation Power",
-        mqtt_topic_suffix="sensors/pv_power",
+        method_name="pv_available_power",
+        friendly_name="PV Available Power",
+        mqtt_topic_suffix="sensors/pv_available_power",
+        writable=False,
+        ha_component="sensor",
+        ha_config={
+            "device_class": "power",
+            "unit_of_measurement": "W",
+            "state_class": "measurement",
+            "icon": "mdi:solar-power",
+        },
+    ),
+    DeviceAttribute(
+        device_class="HeatPump",
+        method_name="pv_electrical_power",
+        friendly_name="PV Electrical Power",
+        mqtt_topic_suffix="sensors/pv_electrical_power",
         writable=False,
         ha_component="sensor",
         ha_config={
@@ -256,6 +303,161 @@ HEAT_PUMP_ATTRIBUTES = [
             "unit_of_measurement": "W",
             "state_class": "measurement",
         },
+        enabled_by_default=False,
+        entity_category="diagnostic",
+    ),
+    DeviceAttribute(
+        device_class="HeatPump",
+        method_name="pv_calculated_heating_power",
+        friendly_name="PV Target Heating Power",
+        mqtt_topic_suffix="sensors/pv_target_heating_power",
+        writable=False,
+        ha_component="sensor",
+        ha_config={
+            "device_class": "power",
+            "unit_of_measurement": "kW",
+            "state_class": "measurement",
+        },
+        enabled_by_default=False,
+        entity_category="diagnostic",
+    ),
+    # PV Power settings (writable)
+    DeviceAttribute(
+        device_class="HeatPump",
+        method_name="pv_setpoint_power",
+        friendly_name="PV Setpoint Power",
+        mqtt_topic_suffix="controls/pv_setpoint_power",
+        writable=True,
+        ha_component="number",
+        ha_config={
+            "device_class": "power",
+            "unit_of_measurement": "W",
+            "min": 0,
+            "max": 10000,
+            "step": 100,
+            "icon": "mdi:solar-power-variant-outline",
+        },
+    ),
+    DeviceAttribute(
+        device_class="HeatPump",
+        method_name="pv_turn_on_power",
+        friendly_name="PV Turn-On Power",
+        mqtt_topic_suffix="controls/pv_turn_on_power",
+        writable=True,
+        ha_component="number",
+        ha_config={
+            "device_class": "power",
+            "unit_of_measurement": "W",
+            "min": 0,
+            "max": 10000,
+            "step": 100,
+            "entity_category": "config",
+        },
+        enabled_by_default=False,
+    ),
+    DeviceAttribute(
+        device_class="HeatPump",
+        method_name="pv_turn_off_power",
+        friendly_name="PV Turn-Off Power",
+        mqtt_topic_suffix="controls/pv_turn_off_power",
+        writable=True,
+        ha_component="number",
+        ha_config={
+            "device_class": "power",
+            "unit_of_measurement": "W",
+            "min": 0,
+            "max": 10000,
+            "step": 100,
+            "entity_category": "config",
+        },
+        enabled_by_default=False,
+    ),
+    # PV Delay settings
+    DeviceAttribute(
+        device_class="HeatPump",
+        method_name="pv_pre_delay",
+        friendly_name="PV Pre-Delay",
+        mqtt_topic_suffix="controls/pv_pre_delay",
+        writable=True,
+        ha_component="number",
+        ha_config={
+            "unit_of_measurement": "min",
+            "min": 0,
+            "max": 60,
+            "step": 1,
+            "icon": "mdi:timer-outline",
+            "entity_category": "config",
+        },
+        enabled_by_default=False,
+    ),
+    DeviceAttribute(
+        device_class="HeatPump",
+        method_name="pv_post_delay",
+        friendly_name="PV Post-Delay",
+        mqtt_topic_suffix="controls/pv_post_delay",
+        writable=True,
+        ha_component="number",
+        ha_config={
+            "unit_of_measurement": "min",
+            "min": 0,
+            "max": 60,
+            "step": 1,
+            "icon": "mdi:timer-outline",
+            "entity_category": "config",
+        },
+        enabled_by_default=False,
+    ),
+    # PV Temperature setpoints
+    DeviceAttribute(
+        device_class="HeatPump",
+        method_name="pv_setpoint_temp_heating",
+        friendly_name="PV Heating Setpoint",
+        mqtt_topic_suffix="controls/pv_setpoint_temp_heating",
+        writable=True,
+        ha_component="number",
+        ha_config={
+            "device_class": "temperature",
+            "unit_of_measurement": "°C",
+            "min": 20,
+            "max": 45,
+            "step": 0.5,
+            "entity_category": "config",
+        },
+        enabled_by_default=False,
+    ),
+    DeviceAttribute(
+        device_class="HeatPump",
+        method_name="pv_setpoint_temp_hot_water",
+        friendly_name="PV Hot Water Setpoint",
+        mqtt_topic_suffix="controls/pv_setpoint_temp_hot_water",
+        writable=True,
+        ha_component="number",
+        ha_config={
+            "device_class": "temperature",
+            "unit_of_measurement": "°C",
+            "min": 40,
+            "max": 65,
+            "step": 0.5,
+            "entity_category": "config",
+        },
+        enabled_by_default=False,
+    ),
+    DeviceAttribute(
+        device_class="HeatPump",
+        method_name="pv_setpoint_temp_cooling",
+        friendly_name="PV Cooling Setpoint",
+        mqtt_topic_suffix="controls/pv_setpoint_temp_cooling",
+        writable=True,
+        ha_component="number",
+        ha_config={
+            "device_class": "temperature",
+            "unit_of_measurement": "°C",
+            "min": 15,
+            "max": 30,
+            "step": 0.5,
+            "entity_category": "config",
+        },
+        enabled_by_default=False,
     ),
 ]
 
@@ -277,8 +479,9 @@ STORAGE_SYSTEM_ATTRIBUTES = [
             "device_class": "temperature",
             "unit_of_measurement": "°C",
             "state_class": "measurement",
-            "entity_category": "diagnostic",  # Buffer temp - technical measurement
         },
+        enabled_by_default=False,
+        entity_category="diagnostic",
     ),
     DeviceAttribute(
         device_class="StorageSystem",
@@ -567,6 +770,283 @@ STORAGE_SYSTEM_ATTRIBUTES = [
         value_enum=EnergyMode,  # Maps 0-4 to enum
     ),
 ]
+
+
+# =============================================================================
+# IFM Gateway Attribute Mappings (Unit 0) - HTTP API Only
+# Based on actual data keys from get_all_values(0)
+# =============================================================================
+
+IFM_ATTRIBUTES = [
+    # ==========================================================================
+    # Network Info (Tier 3: diagnostic, disabled by default)
+    # ==========================================================================
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="ifm_ip_address",
+        friendly_name="IP Address",
+        mqtt_topic_suffix="sensors/ip_address",
+        writable=False,
+        ha_component="sensor",
+        ha_config={"icon": "mdi:ip-network"},
+        enabled_by_default=False,
+        entity_category="diagnostic",
+    ),
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="ifm_hostname",
+        friendly_name="Hostname",
+        mqtt_topic_suffix="sensors/hostname",
+        writable=False,
+        ha_component="sensor",
+        ha_config={"icon": "mdi:server"},
+        enabled_by_default=False,
+        entity_category="diagnostic",
+    ),
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="ifm_serial_number",
+        friendly_name="Serial Number",
+        mqtt_topic_suffix="sensors/serial_number",
+        writable=False,
+        ha_component="sensor",
+        ha_config={"icon": "mdi:barcode"},
+        enabled_by_default=False,
+        entity_category="diagnostic",
+    ),
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="ifm_software_version",
+        friendly_name="Software Version",
+        mqtt_topic_suffix="sensors/software_version",
+        writable=False,
+        ha_component="sensor",
+        ha_config={"icon": "mdi:package-variant"},
+        enabled_by_default=False,
+        entity_category="diagnostic",
+    ),
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="ifm_gateway",
+        friendly_name="Gateway",
+        mqtt_topic_suffix="sensors/gateway",
+        writable=False,
+        ha_component="sensor",
+        ha_config={"icon": "mdi:router-network"},
+        enabled_by_default=False,
+        entity_category="diagnostic",
+    ),
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="ifm_netmask",
+        friendly_name="Netmask",
+        mqtt_topic_suffix="sensors/netmask",
+        writable=False,
+        ha_component="sensor",
+        ha_config={"icon": "mdi:ip-network-outline"},
+        enabled_by_default=False,
+        entity_category="diagnostic",
+    ),
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="ifm_dhcp_enabled",
+        friendly_name="DHCP Enabled",
+        mqtt_topic_suffix="binary_sensors/dhcp_enabled",
+        writable=False,
+        ha_component="binary_sensor",
+        ha_config={"icon": "mdi:ethernet"},
+        enabled_by_default=False,
+        entity_category="diagnostic",
+    ),
+    # ==========================================================================
+    # Connectivity (Tier 1: enabled, important for users)
+    # ==========================================================================
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="ifm_remote_connected",
+        friendly_name="Remote Connected",
+        mqtt_topic_suffix="binary_sensors/remote_connected",
+        writable=False,
+        ha_component="binary_sensor",
+        ha_config={"device_class": "connectivity"},
+        # Tier 1: Always enabled - important for monitoring
+    ),
+    # ==========================================================================
+    # SmartGrid/EVU Signals (Tier 1-2: enabled for energy-aware users)
+    # ==========================================================================
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="ifm_smartgrid_state",
+        friendly_name="SmartGrid State",
+        mqtt_topic_suffix="sensors/smartgrid_state",
+        writable=False,
+        ha_component="sensor",
+        ha_config={"icon": "mdi:solar-power"},
+        # Tier 1: Always enabled - SmartGrid is key feature
+    ),
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="ifm_evu_signal",
+        friendly_name="EVU Signal",
+        mqtt_topic_suffix="binary_sensors/evu_signal",
+        writable=False,
+        ha_component="binary_sensor",
+        ha_config={"icon": "mdi:transmission-tower"},
+        # Tier 2: Enabled - useful for energy monitoring
+    ),
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="ifm_sgready2_signal",
+        friendly_name="SG Ready 2 Signal",
+        mqtt_topic_suffix="binary_sensors/sgready2_signal",
+        writable=False,
+        ha_component="binary_sensor",
+        ha_config={"icon": "mdi:flash"},
+        # Tier 2: Enabled - useful for energy monitoring
+    ),
+    # ==========================================================================
+    # Power Metering (Tier 1: enabled - key monitoring)
+    # ==========================================================================
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="ifm_s0_power",
+        friendly_name="S0 Power",
+        mqtt_topic_suffix="sensors/s0_power",
+        writable=False,
+        ha_component="sensor",
+        ha_config={
+            "device_class": "power",
+            "unit_of_measurement": "W",
+            "state_class": "measurement",
+        },
+        # Tier 1: Always enabled - power monitoring is key
+    ),
+    # ==========================================================================
+    # LEDs and Outputs (Tier 3: config, disabled by default)
+    # ==========================================================================
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="ifm_led1",
+        friendly_name="LED 1",
+        mqtt_topic_suffix="switches/led1",
+        writable=True,
+        ha_component="switch",
+        ha_config={"icon": "mdi:led-on"},
+        enabled_by_default=False,
+        entity_category="config",
+    ),
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="ifm_led2",
+        friendly_name="LED 2",
+        mqtt_topic_suffix="switches/led2",
+        writable=True,
+        ha_component="switch",
+        ha_config={"icon": "mdi:led-on"},
+        enabled_by_default=False,
+        entity_category="config",
+    ),
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="ifm_output1",
+        friendly_name="Output 1",
+        mqtt_topic_suffix="switches/output1",
+        writable=True,
+        ha_component="switch",
+        ha_config={"icon": "mdi:electric-switch"},
+        enabled_by_default=False,
+        entity_category="config",
+    ),
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="ifm_output2",
+        friendly_name="Output 2",
+        mqtt_topic_suffix="switches/output2",
+        writable=True,
+        ha_component="switch",
+        ha_config={"icon": "mdi:electric-switch"},
+        enabled_by_default=False,
+        entity_category="config",
+    ),
+    # ==========================================================================
+    # System Status (Tier 1: enabled - important for monitoring)
+    # ==========================================================================
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="ifm_alarm_status",
+        friendly_name="Alarm Status",
+        mqtt_topic_suffix="sensors/alarm_status",
+        writable=False,
+        ha_component="sensor",
+        ha_config={"icon": "mdi:alert-circle"},
+        # Tier 1: Always enabled - alarm monitoring is critical
+    ),
+    # ==========================================================================
+    # Alarm System (Tier 1: enabled - critical for monitoring)
+    # ==========================================================================
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="alarms_active",
+        friendly_name="Alarms Active",
+        mqtt_topic_suffix="binary_sensors/alarms_active",
+        writable=False,
+        ha_component="binary_sensor",
+        ha_config={
+            "device_class": "problem",
+            "icon": "mdi:alert",
+        },
+        # Tier 1: Always enabled - critical for monitoring
+    ),
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="alarm_count",
+        friendly_name="Active Alarm Count",
+        mqtt_topic_suffix="sensors/alarm_count",
+        writable=False,
+        ha_component="sensor",
+        ha_config={
+            "icon": "mdi:alert-circle-outline",
+            "state_class": "measurement",
+        },
+        # Tier 1: Always enabled - critical for monitoring
+    ),
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="clear_alarms",
+        friendly_name="Clear Alarms",
+        mqtt_topic_suffix="controls/clear_alarms",
+        writable=True,
+        ha_component="button",
+        ha_config={
+            "icon": "mdi:alert-remove",
+        },
+        # Tier 1: Always enabled - important control
+    ),
+    DeviceAttribute(
+        device_class="IFM",
+        method_name="alarm_history_count",
+        friendly_name="Alarm History Count",
+        mqtt_topic_suffix="sensors/alarm_history_count",
+        writable=False,
+        ha_component="sensor",
+        ha_config={
+            "icon": "mdi:history",
+            "state_class": "total_increasing",
+        },
+        enabled_by_default=False,
+        entity_category="diagnostic",
+    ),
+]
+
+
+def get_ifm_attributes() -> list[DeviceAttribute]:
+    """
+    Get all attribute mappings for IFM gateway device.
+
+    Returns:
+        List of DeviceAttribute instances
+    """
+    return IFM_ATTRIBUTES.copy()
 
 
 def get_heat_pump_attributes() -> list[DeviceAttribute]:

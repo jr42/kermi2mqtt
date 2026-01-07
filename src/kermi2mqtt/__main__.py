@@ -16,8 +16,9 @@ import signal
 import sys
 from pathlib import Path
 
-from kermi2mqtt.bridge import ModbusMQTTBridge
+from kermi2mqtt.bridge import Bridge
 from kermi2mqtt.config import load_config
+from kermi2mqtt.http_client import HttpClient
 from kermi2mqtt.modbus_client import ModbusClient
 from kermi2mqtt.mqtt_client import MQTTClient
 
@@ -82,7 +83,7 @@ def handle_signal(sig: signal.Signals) -> None:
 
 async def run_bridge(config_path: str) -> int:
     """
-    Run the Modbus-to-MQTT bridge.
+    Run the device-to-MQTT bridge.
 
     Args:
         config_path: Path to configuration file
@@ -96,12 +97,26 @@ async def run_bridge(config_path: str) -> int:
         config = load_config(config_path)
         logger.info("Configuration loaded successfully")
 
-        # Create clients
-        modbus_client = ModbusClient(
-            config=config.modbus,
-            initial_reconnect_delay=config.advanced.modbus_reconnect_delay,
-            max_reconnect_delay=config.advanced.modbus_max_reconnect_delay,
-        )
+        # Create device client based on connection type
+        conn_type = config.integration.connection_type
+        logger.info(f"Connection type: {conn_type.upper()}")
+
+        if conn_type == "http":
+            if not config.http:
+                raise ValueError("HTTP configuration required for connection_type='http'")
+            device_client: HttpClient | ModbusClient = HttpClient(
+                config=config.http,
+                initial_reconnect_delay=config.advanced.modbus_reconnect_delay,
+                max_reconnect_delay=config.advanced.modbus_max_reconnect_delay,
+            )
+        else:
+            if not config.modbus:
+                raise ValueError("Modbus configuration required for connection_type='modbus'")
+            device_client = ModbusClient(
+                config=config.modbus,
+                initial_reconnect_delay=config.advanced.modbus_reconnect_delay,
+                max_reconnect_delay=config.advanced.modbus_max_reconnect_delay,
+            )
 
         mqtt_client = MQTTClient(
             mqtt_config=config.mqtt,
@@ -109,15 +124,15 @@ async def run_bridge(config_path: str) -> int:
         )
 
         # Connect to both systems
-        logger.info("Connecting to Modbus and MQTT...")
+        logger.info(f"Connecting to {conn_type.upper()} and MQTT...")
 
-        async with modbus_client, mqtt_client:
+        async with device_client, mqtt_client:
             logger.info("All connections established")
 
             # Create bridge
-            bridge = ModbusMQTTBridge(
+            bridge = Bridge(
                 config=config,
-                modbus_client=modbus_client,
+                device_client=device_client,
                 mqtt_client=mqtt_client,
             )
 

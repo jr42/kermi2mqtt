@@ -1,5 +1,5 @@
 """
-Main bridge logic - orchestrates Modbus polling and MQTT publishing.
+Main bridge logic - orchestrates device polling and MQTT publishing.
 
 Handles:
 - Device discovery and wrapping
@@ -11,23 +11,47 @@ Handles:
 Architecture:
 - State publishing: Always publishes to agnostic MQTT topics (works with all tools)
 - HA Discovery: Optional, configurable via ha_discovery_enabled in config
+- Supports both HTTP (recommended) and Modbus transports
 """
 
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 from kermi_xcenter.types import EnergyMode, SeasonSelection
 
 from kermi2mqtt import ha_discovery
 from kermi2mqtt.config import Config
-from kermi2mqtt.mappings import get_heat_pump_attributes, get_storage_system_attributes
-from kermi2mqtt.modbus_client import ModbusClient
+from kermi2mqtt.mappings import (
+    get_heat_pump_attributes,
+    get_ifm_attributes,
+    get_storage_system_attributes,
+)
 from kermi2mqtt.models.datapoint import DeviceAttribute
 from kermi2mqtt.models.device import KermiDevice
 from kermi2mqtt.mqtt_client import MQTTClient
 from kermi2mqtt.safety import RateLimiter, SafetyValidator
+
+if TYPE_CHECKING:
+    from kermi2mqtt.http_client import HttpClient
+    from kermi2mqtt.modbus_client import ModbusClient
+
+
+class DeviceClient(Protocol):
+    """Protocol for device clients (HTTP or Modbus)."""
+
+    @property
+    def is_connected(self) -> bool: ...
+    @property
+    def heat_pump(self) -> Any: ...
+    @property
+    def storage_heating(self) -> Any: ...
+    @property
+    def storage_dhw(self) -> Any: ...
+
+    async def reconnect_with_backoff(self) -> None: ...
+    async def read_all_devices(self) -> dict[str, dict[str, Any]]: ...
 
 logger = logging.getLogger(__name__)
 
@@ -42,8 +66,10 @@ HEATING_ONLY_ATTRIBUTES = {
     "heating_circuit_operating_mode",
     "cooling_actual",
     "cooling_mode_active",
+    "summer_mode_active",  # Heating circuit concept - not relevant for DHW
     "t4_temperature",  # Outdoor sensor (T4) - physically on heating unit
     "outdoor_temperature_avg",  # Calculated outdoor average - on heating unit
+    "operating_hours_circuit_pump",  # Circuit pump is on heating unit
 }
 
 DHW_ONLY_ATTRIBUTES = {
@@ -119,9 +145,9 @@ def _should_publish_attribute(
     return True
 
 
-class ModbusMQTTBridge:
+class Bridge:
     """
-    Main bridge between Modbus and MQTT.
+    Main bridge between device (HTTP/Modbus) and MQTT.
 
     Responsibilities:
     - Discover devices on startup
@@ -134,7 +160,7 @@ class ModbusMQTTBridge:
     def __init__(
         self,
         config: Config,
-        modbus_client: ModbusClient,
+        device_client: "HttpClient | ModbusClient",
         mqtt_client: MQTTClient,
     ):
         """
@@ -142,13 +168,14 @@ class ModbusMQTTBridge:
 
         Args:
             config: Application configuration
-            modbus_client: Connected Modbus client
+            device_client: Connected device client (HTTP or Modbus)
             mqtt_client: Connected MQTT client
         """
         self.config = config
-        self.modbus = modbus_client
+        self.device_client = device_client
         self.mqtt = mqtt_client
         self.devices: list[KermiDevice] = []
+        self.scenes: list = []  # SceneOverview objects from HTTP API
         self._running = False
 
         # Command handling (User Story 2)
@@ -164,64 +191,125 @@ class ModbusMQTTBridge:
         - StorageSystem heating (Unit 50, auto-detected)
         - StorageSystem DHW (Unit 51, auto-detected)
         """
-        logger.info("Discovering Modbus devices...")
+        conn_type = self.config.integration.connection_type
+        logger.info(f"Discovering devices via {conn_type.upper()}...")
 
         # Determine device_id (from config or derive from host)
         device_id = self.config.integration.device_id
         if not device_id:
-            # Derive from Modbus host (sanitize for MQTT)
-            device_id = self.config.modbus.host.replace(".", "_").replace(":", "_")
+            # Derive from host (sanitize for MQTT)
+            if conn_type == "http" and self.config.http:
+                host = self.config.http.host
+            elif self.config.modbus:
+                host = self.config.modbus.host
+            else:
+                host = "unknown"
+            device_id = host.replace(".", "_").replace(":", "_")
             logger.info(f"Auto-detected device_id: {device_id}")
 
         base_topic = self.config.integration.base_topic
+        is_http = self.config.integration.connection_type == "http"
+
+        # Helper to get device metadata (HTTP only)
+        async def get_device_metadata(unit_id: int) -> tuple[str | None, str | None, str | None]:
+            """Get serial, model, sw_version for a device (HTTP only)."""
+            if is_http and hasattr(self.device_client, "get_device_info"):
+                try:
+                    info = await self.device_client.get_device_info(unit_id)
+                    return info.serial_number, info.model, info.software_version
+                except Exception as e:
+                    logger.warning(f"Could not get device info for unit {unit_id}: {e}")
+            return None, None, None
+
+        # Create IFM device wrapper (HTTP only - Unit 0)
+        if is_http and hasattr(self.device_client, "ifm") and self.device_client.ifm:
+            serial, model, sw_ver = await get_device_metadata(0)
+            ifm_device = KermiDevice(
+                device_id=f"{device_id}_ifm",
+                device_type="ifm",
+                unit_id=0,
+                xcenter_instance=self.device_client.ifm,
+                attributes=get_ifm_attributes(),
+                mqtt_base_topic=f"{base_topic}/{device_id}/ifm",
+                available=True,
+                serial_number=serial,
+                model_name=model,
+                software_version=sw_ver,
+            )
+            self.devices.append(ifm_device)
+            logger.info(f"Discovered IFM (Unit 0) - Serial: {serial}")
+
+            # Discover scenes (x-center automation rules)
+            try:
+                self.scenes = await self.device_client.get_scenes()
+                if self.scenes:
+                    logger.info(f"Discovered {len(self.scenes)} scene(s)")
+                    for scene in self.scenes:
+                        status = "enabled" if scene.enabled else "disabled"
+                        logger.debug(f"  - {scene.display_name} ({status})")
+            except Exception as e:
+                logger.warning(f"Could not discover scenes: {e}")
 
         # Create HeatPump device wrapper
-        if self.modbus.heat_pump:
+        if self.device_client.heat_pump:
+            serial, model, sw_ver = await get_device_metadata(40)
             heat_pump_device = KermiDevice(
                 device_id=f"{device_id}_heat_pump",
                 device_type="heat_pump",
                 unit_id=40,
-                xcenter_instance=self.modbus.heat_pump,
+                xcenter_instance=self.device_client.heat_pump,
                 attributes=get_heat_pump_attributes(),
                 mqtt_base_topic=f"{base_topic}/{device_id}/heat_pump",
                 available=True,
+                serial_number=serial,
+                model_name=model,
+                software_version=sw_ver,
             )
             self.devices.append(heat_pump_device)
             logger.info(
-                f"Discovered HeatPump (Unit 40) with {len(heat_pump_device.attributes)} attributes"
+                f"Discovered HeatPump (Unit 40) - Serial: {serial}, "
+                f"{len(heat_pump_device.attributes)} attributes"
             )
 
         # Create StorageSystem heating device wrapper
-        if self.modbus.storage_heating:
+        if self.device_client.storage_heating:
+            serial, model, sw_ver = await get_device_metadata(50)
             storage_heating_device = KermiDevice(
                 device_id=f"{device_id}_storage_heating",
                 device_type="storage_heating",
                 unit_id=50,
-                xcenter_instance=self.modbus.storage_heating,
+                xcenter_instance=self.device_client.storage_heating,
                 attributes=get_storage_system_attributes(),
                 mqtt_base_topic=f"{base_topic}/{device_id}/storage_heating",
                 available=True,
+                serial_number=serial,
+                model_name=model,
+                software_version=sw_ver,
             )
             self.devices.append(storage_heating_device)
             logger.info(
-                f"Discovered StorageSystem heating (Unit 50) with "
+                f"Discovered StorageSystem heating (Unit 50) - Serial: {serial}, "
                 f"{len(storage_heating_device.attributes)} attributes"
             )
 
         # Create StorageSystem DHW device wrapper
-        if self.modbus.storage_dhw:
+        if self.device_client.storage_dhw:
+            serial, model, sw_ver = await get_device_metadata(51)
             storage_dhw_device = KermiDevice(
                 device_id=f"{device_id}_storage_dhw",
                 device_type="storage_dhw",
                 unit_id=51,
-                xcenter_instance=self.modbus.storage_dhw,
+                xcenter_instance=self.device_client.storage_dhw,
                 attributes=get_storage_system_attributes(),
                 mqtt_base_topic=f"{base_topic}/{device_id}/storage_dhw",
                 available=True,
+                serial_number=serial,
+                model_name=model,
+                software_version=sw_ver,
             )
             self.devices.append(storage_dhw_device)
             logger.info(
-                f"Discovered StorageSystem DHW (Unit 51) with "
+                f"Discovered StorageSystem DHW (Unit 51) - Serial: {serial}, "
                 f"{len(storage_dhw_device.attributes)} attributes"
             )
 
@@ -254,6 +342,8 @@ class ModbusMQTTBridge:
                 mqtt_client=self.mqtt,
                 devices=self.devices,
                 ha_discovery_prefix=self.config.integration.ha_discovery_prefix,
+                connection_type=self.config.integration.connection_type,
+                scenes=self.scenes if self.scenes else None,
             )
             logger.info("✓ Home Assistant discovery complete")
         except Exception as e:
@@ -280,12 +370,14 @@ class ModbusMQTTBridge:
 
         try:
             # Read all devices using efficient bulk method
-            all_data = await self.modbus.read_all_devices()
+            all_data = await self.device_client.read_all_devices()
 
             # Process each device
             for device in self.devices:
                 # Get data for this device
-                if device.device_type == "heat_pump":
+                if device.device_type == "ifm":
+                    device_data = all_data.get("ifm", {})
+                elif device.device_type == "heat_pump":
                     device_data = all_data.get("heat_pump", {})
                 elif device.device_type == "storage_heating":
                     device_data = all_data.get("storage_heating", {})
@@ -297,6 +389,11 @@ class ModbusMQTTBridge:
 
                 # Publish each attribute
                 await self._publish_device_state(device, device_data)
+
+                # For IFM device with HTTP connection, also poll and publish alarms and scenes
+                if device.device_type == "ifm" and self.config.integration.connection_type == "http":
+                    await self._poll_and_publish_alarms(device)
+                    await self._publish_scene_states(device)
 
                 # Update last poll time
                 device.last_poll = datetime.now(tz=None)
@@ -344,6 +441,12 @@ class ModbusMQTTBridge:
             # Get value from data
             value = device_data.get(data_key)
 
+            # Filter NaN values (causes "unknown" in HA)
+            # Can be float NaN or string "NaN" depending on API response
+            if (isinstance(value, float) and (value != value)) or value == "NaN":
+                logger.debug(f"Filtering {device.device_id}.{attribute.method_name} - NaN value")
+                continue
+
             if value is not None:
                 # Check if this attribute should be published for this device type
                 if not _should_publish_attribute(device.device_type, attribute, value):
@@ -354,8 +457,8 @@ class ModbusMQTTBridge:
                     continue  # Skip publishing this attribute
 
                 # Transform value based on component type and enum
-                if attribute.ha_component == "binary_sensor":
-                    # Home Assistant binary_sensor expects "ON" or "OFF"
+                if attribute.ha_component in ("binary_sensor", "switch"):
+                    # Home Assistant binary_sensor and switch expect "ON" or "OFF"
                     payload = "ON" if value else "OFF"
                 elif attribute.value_enum:
                     # Translate numeric value using enum
@@ -405,12 +508,183 @@ class ModbusMQTTBridge:
                 # Only log debug for missing values (some attributes may not always be present)
                 logger.debug(f"No data for {device.device_id}.{attribute.method_name}")
 
+    async def _poll_and_publish_alarms(self, ifm_device: KermiDevice) -> None:
+        """
+        Poll alarm data from HTTP API and publish to MQTT.
+
+        Publishes:
+        - binary_sensors/alarms_active: ON if any alarm active
+        - sensors/alarm_count: Number of active alarms
+        - sensors/alarm_history_count: Number of alarms in history
+
+        Args:
+            ifm_device: The IFM KermiDevice to publish alarm data under
+        """
+        try:
+            # Get current alarms
+            current_alarms = await self.device_client.get_current_alarms()
+            alarm_count = len(current_alarms)
+            alarms_active = alarm_count > 0
+
+            # Get alarm history
+            alarm_history = await self.device_client.get_alarm_history()
+            history_count = len(alarm_history)
+
+            # Publish alarms_active binary sensor
+            active_topic = f"{ifm_device.mqtt_base_topic}/binary_sensors/alarms_active"
+            await self.mqtt.publish_state(active_topic, "ON" if alarms_active else "OFF")
+
+            # Publish alarm_count sensor
+            count_topic = f"{ifm_device.mqtt_base_topic}/sensors/alarm_count"
+            await self.mqtt.publish_state(count_topic, str(alarm_count))
+
+            # Publish alarm_history_count sensor
+            history_topic = f"{ifm_device.mqtt_base_topic}/sensors/alarm_history_count"
+            await self.mqtt.publish_state(history_topic, str(history_count))
+
+            logger.debug(
+                f"Alarm status: {alarm_count} active, {history_count} in history"
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to poll alarms: {e}")
+
+    async def _publish_scene_states(self, ifm_device: KermiDevice) -> None:
+        """
+        Publish scene states to MQTT.
+
+        For each scene publishes:
+        - enabled: ON/OFF for the enable/disable switch
+        - available: online/offline for scene trigger availability
+          (disabled scenes show as greyed out in HA)
+
+        Args:
+            ifm_device: The IFM KermiDevice to publish scene states under
+        """
+        if not self.scenes:
+            return
+
+        try:
+            # Re-fetch scenes to get current enabled status
+            self.scenes = await self.device_client.get_scenes()
+
+            for scene in self.scenes:
+                # Sanitize scene_id for topic (remove dashes from UUID)
+                safe_scene_id = scene.scene_id.replace("-", "")
+                base_topic = f"{ifm_device.mqtt_base_topic}/scenes/{safe_scene_id}"
+
+                # Publish enabled state (for the switch entity)
+                await self.mqtt.publish_state(
+                    f"{base_topic}/enabled", "ON" if scene.enabled else "OFF"
+                )
+
+                # Publish availability (for the scene trigger entity)
+                # Disabled scenes appear greyed out in HA
+                await self.mqtt.publish_state(
+                    f"{base_topic}/available", "online" if scene.enabled else "offline"
+                )
+
+            logger.debug(f"Published state for {len(self.scenes)} scene(s)")
+
+        except Exception as e:
+            logger.error(f"Failed to publish scene states: {e}")
+
+    async def _handle_scene_command(self, topic: str, payload: str) -> None:
+        """
+        Handle scene-related MQTT commands.
+
+        Topic formats:
+        - Enable/disable: .../scenes/{scene_id}/enabled/set (payload: ON/OFF)
+        - Trigger: .../scenes/{scene_id}/trigger/set (payload: ACTIVATE)
+
+        Args:
+            topic: MQTT topic
+            payload: Command payload
+        """
+        topic_parts = topic.split("/")
+
+        # Extract scene_id and command type from topic
+        # Format: .../scenes/{scene_id}/{enabled|trigger}/set
+        try:
+            scenes_idx = topic_parts.index("scenes")
+            scene_id_sanitized = topic_parts[scenes_idx + 1]
+            command_type = topic_parts[scenes_idx + 2]  # "enabled" or "trigger"
+        except (ValueError, IndexError):
+            logger.error(f"Invalid scene command topic: {topic}")
+            return
+
+        # Find matching scene (scene_id in topic is sanitized, without dashes)
+        matching_scene = None
+        for scene in self.scenes:
+            if scene.scene_id.replace("-", "") == scene_id_sanitized:
+                matching_scene = scene
+                break
+
+        if not matching_scene:
+            logger.error(f"Scene not found: {scene_id_sanitized}")
+            await self._publish_command_error(topic, f"Scene not found: {scene_id_sanitized}")
+            return
+
+        scene_id = matching_scene.scene_id
+        scene_name = matching_scene.display_name
+
+        try:
+            if command_type == "enabled":
+                # Enable/disable scene
+                if payload.upper() == "ON":
+                    logger.info(f"Enabling scene: {scene_name}")
+                    await self.device_client.set_scene_enabled(scene_id, True)
+                elif payload.upper() == "OFF":
+                    logger.info(f"Disabling scene: {scene_name}")
+                    await self.device_client.set_scene_enabled(scene_id, False)
+                else:
+                    error_msg = f"Invalid scene enable payload: {payload} (expected ON/OFF)"
+                    logger.error(error_msg)
+                    await self._publish_command_error(topic, error_msg)
+                    return
+
+                logger.info(f"✓ Scene {scene_name} {'enabled' if payload.upper() == 'ON' else 'disabled'}")
+
+                # Re-publish scene states to update HA
+                ifm_device = next((d for d in self.devices if d.device_type == "ifm"), None)
+                if ifm_device:
+                    await self._publish_scene_states(ifm_device)
+
+            elif command_type == "trigger":
+                # Trigger scene execution
+                if payload.upper() != "ACTIVATE":
+                    error_msg = f"Invalid scene trigger payload: {payload} (expected ACTIVATE)"
+                    logger.error(error_msg)
+                    await self._publish_command_error(topic, error_msg)
+                    return
+
+                # Check if scene is enabled
+                if not matching_scene.enabled:
+                    error_msg = f"Cannot trigger disabled scene: {scene_name}"
+                    logger.warning(error_msg)
+                    await self._publish_command_error(topic, error_msg)
+                    return
+
+                logger.info(f"Triggering scene: {scene_name}")
+                await self.device_client.execute_scene(scene_id)
+                logger.info(f"✓ Scene {scene_name} triggered successfully")
+
+            else:
+                logger.error(f"Unknown scene command type: {command_type}")
+
+        except Exception as e:
+            error_msg = f"Scene command failed: {e}"
+            logger.error(error_msg, exc_info=True)
+            await self._publish_command_error(topic, error_msg)
+
     async def handle_command(self, topic: str, payload: str) -> None:
         """
         Handle MQTT command messages.
 
-        Topic format: {base_topic}/{device_id}/controls/{control_name}/set
-        Example: kermi/xcenter/storage_dhw/controls/hot_water_setpoint/set
+        Topic formats:
+        - Controls: {base_topic}/{device_id}/controls/{control_name}/set
+        - Scene enable: {base_topic}/{device_id}/ifm/scenes/{scene_id}/enabled/set
+        - Scene trigger: {base_topic}/{device_id}/ifm/scenes/{scene_id}/trigger/set
 
         Args:
             topic: MQTT topic that received the command
@@ -420,11 +694,18 @@ class ModbusMQTTBridge:
             Exception: On command execution failure (published to error topic)
         """
         try:
+            topic_parts = topic.split("/")
+
+            # Check for scene commands first
+            # Format: .../ifm/scenes/{scene_id}/{enabled|trigger}/set
+            if "/scenes/" in topic and topic.endswith("/set"):
+                await self._handle_scene_command(topic, payload)
+                return
+
             # Parse topic to extract device_id and control_name
             # Expected format: {base_topic}/{device_id}/controls/{control_name}/set
-            topic_parts = topic.split("/")
             if len(topic_parts) < 5 or topic_parts[-3] != "controls" or topic_parts[-1] != "set":
-                logger.error(f"Invalid command topic format: {topic}")
+                logger.debug(f"Ignoring non-command topic: {topic}")
                 return
 
             control_name = topic_parts[-2]
@@ -569,7 +850,32 @@ class ModbusMQTTBridge:
                     logger.error(error_msg)
                     await self._publish_command_error(topic, error_msg)
                     return
+
+                # Special handling for clear_alarms button (HTTP only)
+                if attribute.method_name == "clear_alarms":
+                    if self.config.integration.connection_type == "http":
+                        logger.info("Clearing alarms via HTTP API...")
+                        await self.device_client.clear_alarms()
+                        logger.info("✓ Alarms cleared successfully")
+                        # Re-poll alarms to update state
+                        await self._poll_and_publish_alarms(device)
+                        return
+                    else:
+                        error_msg = "Clear alarms is only available with HTTP connection"
+                        logger.error(error_msg)
+                        await self._publish_command_error(topic, error_msg)
+                        return
+
                 parsed_value = 1  # Button press value
+
+            elif attribute.ha_component == "switch":
+                # Switch commands expect "ON" or "OFF"
+                if payload.upper() not in ("ON", "OFF"):
+                    error_msg = f"Invalid switch payload: {payload}"
+                    logger.error(error_msg)
+                    await self._publish_command_error(topic, error_msg)
+                    return
+                parsed_value = payload.upper() == "ON"
 
             else:
                 error_msg = f"Unsupported component type for write: {attribute.ha_component}"
@@ -648,10 +954,10 @@ class ModbusMQTTBridge:
                     # After MQTT reconnects, republish availability and discovery
                     await self.publish_availability(True)
 
-                if not self.modbus.is_connected:
-                    logger.warning("Modbus disconnected, attempting reconnection...")
-                    await self.modbus.reconnect_with_backoff()
-                    logger.info("Modbus reconnected successfully")
+                if not self.device_client.is_connected:
+                    logger.warning("Device client disconnected, attempting reconnection...")
+                    await self.device_client.reconnect_with_backoff()
+                    logger.info("Device client reconnected successfully")
 
                 # Poll and publish
                 await self.poll_and_publish()
@@ -692,7 +998,8 @@ class ModbusMQTTBridge:
         3. Publish initial availability
         4. Start polling loop
         """
-        logger.info("Starting Modbus-MQTT bridge")
+        conn_type = self.config.integration.connection_type.upper()
+        logger.info(f"Starting {conn_type}-MQTT bridge")
 
         # Discover devices
         await self.discover_devices()
@@ -726,3 +1033,7 @@ class ModbusMQTTBridge:
         await self.publish_availability(False)
 
         logger.info("Bridge shutdown complete")
+
+
+# Backward compatibility alias
+ModbusMQTTBridge = Bridge

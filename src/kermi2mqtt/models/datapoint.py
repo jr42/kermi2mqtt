@@ -3,7 +3,7 @@ Device attribute model - maps py-kermi-xcenter methods to MQTT topics.
 """
 
 from enum import IntEnum
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -41,4 +41,12 @@ class DeviceAttribute(BaseModel):
     value_enum: type[IntEnum] | None = Field(
         default=None,
         description="Enum type for translating numeric values (e.g., HeatPumpStatus)",
+    )
+    enabled_by_default: bool = Field(
+        default=True,
+        description="Whether entity is enabled by default in HA (False for diagnostic/advanced)",
+    )
+    entity_category: Literal["diagnostic", "config"] | None = Field(
+        default=None,
+        description="HA entity category: 'diagnostic' for status info, 'config' for settings",
     )

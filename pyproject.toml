@@ -1,14 +1,14 @@
 [project]
 name = "kermi2mqtt"
-version = "0.0.1"
-description = "Modbus-to-MQTT bridge for Kermi heat pumps with Home Assistant auto-discovery"
+version = "0.1.0"
+description = "HTTP/Modbus-to-MQTT bridge for Kermi heat pumps with Home Assistant auto-discovery"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "Apache-2.0" }
 authors = [
     { name = "kermi2mqtt contributors" }
 ]
-keywords = ["kermi", "heat-pump", "modbus", "mqtt", "home-assistant", "iot"]
+keywords = ["kermi", "heat-pump", "modbus", "mqtt", "home-assistant", "iot", "http"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: End Users/Desktop",
@@ -22,7 +22,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "kermi-xcenter>=0.2.2",
+    "kermi-xcenter>=0.3.0",
     "aiomqtt>=2.0.0",
     "pydantic>=2.0.0",
     "pyyaml>=6.0.0",
