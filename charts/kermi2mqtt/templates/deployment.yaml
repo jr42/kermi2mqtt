@@ -49,6 +49,13 @@ spec:
                 secretKeyRef:
                   name: {{ include "kermi2mqtt.mqttSecretName" . }}
                   key: {{ .Values.mqttAuth.passwordKey }}
+            {{- if and .Values.httpAuth.enabled .Values.httpAuth.existingSecret }}
+            - name: HTTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.httpAuth.existingSecret }}
+                  key: {{ .Values.httpAuth.passwordKey }}
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

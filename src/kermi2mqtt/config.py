@@ -143,9 +143,10 @@ def load_config(config_path: str | Path) -> Config:
     """
     Load and validate configuration from YAML file.
 
-    Environment variables can override MQTT credentials:
+    Environment variables can override credentials:
     - MQTT_USERNAME: Override mqtt.username
     - MQTT_PASSWORD: Override mqtt.password
+    - HTTP_PASSWORD: Override http.password (X-Center authentication)
 
     Backward compatibility:
     - If only 'modbus' is provided and connection_type is 'http', auto-creates http config
@@ -181,6 +182,12 @@ def load_config(config_path: str | Path) -> Config:
         config_dict["mqtt"]["username"] = mqtt_username
     if mqtt_password := os.environ.get("MQTT_PASSWORD"):
         config_dict["mqtt"]["password"] = mqtt_password
+
+    # Apply environment variable override for HTTP password
+    if http_password := os.environ.get("HTTP_PASSWORD"):
+        if "http" not in config_dict:
+            config_dict["http"] = {}
+        config_dict["http"]["password"] = http_password
 
     # Backward compatibility: if only modbus is provided
     if "modbus" in config_dict and "http" not in config_dict:

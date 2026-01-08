@@ -120,6 +120,15 @@ mqttAuth:
   # -- MQTT password (only used if create is true)
   password: ""
 
+# -- HTTP authentication for X-Center (stored in Secret)
+httpAuth:
+  # -- Enable HTTP authentication from secret
+  enabled: false
+  # -- Use existing secret for HTTP password
+  existingSecret: ""
+  # -- Key in secret for password
+  passwordKey: password
+
 # -- Extra environment variables
 extraEnv: []
 #  - name: TZ
