@@ -54,7 +54,18 @@ config:
   # -- Log level (DEBUG, INFO, WARNING, ERROR)
   logLevel: INFO
 
-  # -- Modbus connection settings
+  # -- HTTP API connection settings (recommended, default)
+  http:
+    # -- Kermi X-Center hostname or IP
+    host: ""
+    # -- HTTP port
+    port: 80
+    # -- Optional password (typically last 4 digits of serial number)
+    password: ""
+    # -- Request timeout in seconds
+    timeout: 10.0
+
+  # -- Modbus connection settings (legacy, use http instead)
   modbus:
     # -- Kermi X-Center hostname or IP
     host: ""
@@ -78,7 +89,9 @@ config:
 
   # -- Integration settings
   integration:
-    # -- Device identifier for unique entity IDs (auto-detected from modbus host if not set)
+    # -- Connection type: "http" (recommended) or "modbus" (legacy)
+    connectionType: http
+    # -- Device identifier for unique entity IDs (auto-detected if not set)
     # -- IMPORTANT: Set this to avoid duplicate entities in Home Assistant
     deviceId: ""
 

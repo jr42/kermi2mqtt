@@ -19,11 +19,20 @@ resources:
 config:
   logLevel: INFO
 
-  modbus:
+  # HTTP API connection (recommended, default)
+  http:
     # Your Kermi X-Center hostname or IP
     host: "xcenter.local"
-    port: 502
-    mode: tcp
+    port: 80
+    # Optional: password (typically last 4 digits of serial number)
+    password: ""
+    timeout: 10.0
+
+  # Legacy Modbus connection (only needed if connectionType: modbus)
+  # modbus:
+  #   host: "xcenter.local"
+  #   port: 502
+  #   mode: tcp
 
   mqtt:
     # Your MQTT broker
@@ -31,8 +40,13 @@ config:
     port: 8883
     tlsEnabled: true
     tlsInsecure: false  # Set to true for self-signed certs
-    clientIdPrefix: kermi2mqtt
     baseTopic: kermi
+
+  integration:
+    # Connection type: "http" (recommended) or "modbus" (legacy)
+    connectionType: http
+    # Optional: device ID for unique entity IDs (auto-detected if not set)
+    # deviceId: "xcenter"
 
   homeAssistant:
     discoveryEnabled: true

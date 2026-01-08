@@ -2,13 +2,14 @@ apiVersion: v2
 name: kermi2mqtt
 description: A Helm chart for kermi2mqtt - Kermi heat pump to MQTT bridge with Home Assistant integration
 type: application
-version: 0.1.0
-appVersion: "main"
+version: 0.2.0
+appVersion: "0.1.0"
 keywords:
   - kermi
   - mqtt
   - home-assistant
   - heat-pump
+  - http
   - modbus
   - iot
 home: https://github.com/jr42/kermi2mqtt
