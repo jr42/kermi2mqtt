@@ -573,8 +573,6 @@ async def publish_all_discovery(
     ha_discovery_prefix: str,
     connection_type: str = "modbus",
     scenes: list | None = None,
-    base_topic: str = "kermi",
-    device_id: str = "xcenter",
 ) -> None:
     """Publish discovery messages for all devices and their attributes.
 
@@ -584,8 +582,6 @@ async def publish_all_discovery(
         ha_discovery_prefix: HA discovery prefix (typically "homeassistant")
         connection_type: Connection type ("http" or "modbus") - affects feature availability
         scenes: List of SceneOverview objects (HTTP only)
-        base_topic: MQTT base topic for state publishing
-        device_id: Device ID for topic construction
 
     Note:
         This only tells HA about the sensors. Actual state values are

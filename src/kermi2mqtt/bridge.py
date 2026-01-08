@@ -443,7 +443,7 @@ class Bridge:
 
             # Filter NaN values (causes "unknown" in HA)
             # Can be float NaN or string "NaN" depending on API response
-            if (isinstance(value, float) and (value != value)) or value == "NaN":
+            if (isinstance(value, float) and value != value) or value == "NaN":  # noqa: PLR0124
                 logger.debug(f"Filtering {device.device_id}.{attribute.method_name} - NaN value")
                 continue
 
@@ -604,7 +604,7 @@ class Bridge:
         topic_parts = topic.split("/")
 
         # Extract scene_id and command type from topic
-        # Format: .../scenes/{scene_id}/{enabled|trigger}/set
+        # Expected path: .../scenes/<scene_id>/<enabled|trigger>/set
         try:
             scenes_idx = topic_parts.index("scenes")
             scene_id_sanitized = topic_parts[scenes_idx + 1]
@@ -696,8 +696,7 @@ class Bridge:
         try:
             topic_parts = topic.split("/")
 
-            # Check for scene commands first
-            # Format: .../ifm/scenes/{scene_id}/{enabled|trigger}/set
+            # Check for scene commands first (path contains /scenes/ and ends with /set)
             if "/scenes/" in topic and topic.endswith("/set"):
                 await self._handle_scene_command(topic, payload)
                 return
@@ -860,11 +859,11 @@ class Bridge:
                         # Re-poll alarms to update state
                         await self._poll_and_publish_alarms(device)
                         return
-                    else:
-                        error_msg = "Clear alarms is only available with HTTP connection"
-                        logger.error(error_msg)
-                        await self._publish_command_error(topic, error_msg)
-                        return
+
+                    error_msg = "Clear alarms is only available with HTTP connection"
+                    logger.error(error_msg)
+                    await self._publish_command_error(topic, error_msg)
+                    return
 
                 parsed_value = 1  # Button press value
 
