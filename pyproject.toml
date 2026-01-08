@@ -1,7 +1,7 @@
 [project]
 name = "kermi2mqtt"
-version = "0.1.0"
-description = "HTTP/Modbus-to-MQTT bridge for Kermi heat pumps with Home Assistant auto-discovery"
+version = "0.1.2"
+description = "Kermi x-center to MQTT bridge for heat pumps with Home Assistant auto-discovery"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "Apache-2.0" }
