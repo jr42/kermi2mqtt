@@ -16,6 +16,7 @@ Architecture:
 
 import asyncio
 import logging
+import time
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Protocol
 
@@ -177,6 +178,9 @@ class Bridge:
         self.devices: list[KermiDevice] = []
         self.scenes: list = []  # SceneOverview objects from HTTP API
         self._running = False
+        # monotonic timestamp of the last fully-successful poll_and_publish cycle.
+        # None until the first successful cycle; used by /healthz to detect wedges.
+        self.last_successful_poll_monotonic: float | None = None
 
         # Command handling (User Story 2)
         self.rate_limiter = RateLimiter(min_interval_seconds=60.0)
@@ -404,6 +408,7 @@ class Bridge:
                     device.available = True
                 await self.publish_availability(True)
 
+            self.last_successful_poll_monotonic = time.monotonic()
             logger.debug("Poll complete")
 
         except Exception as e:

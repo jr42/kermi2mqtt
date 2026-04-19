@@ -18,6 +18,7 @@ from pathlib import Path
 
 from kermi2mqtt.bridge import Bridge
 from kermi2mqtt.config import load_config
+from kermi2mqtt.health import HealthServer
 from kermi2mqtt.http_client import HttpClient
 from kermi2mqtt.modbus_client import ModbusClient
 from kermi2mqtt.mqtt_client import MQTTClient
@@ -136,24 +137,41 @@ async def run_bridge(config_path: str) -> int:
                 mqtt_client=mqtt_client,
             )
 
-            # Run bridge in a task
-            bridge_task = asyncio.create_task(bridge.run())
+            # Optional health-check HTTP server for Kubernetes probes.
+            # Stays up during reconnect loops — that's exactly when probes need
+            # to be queryable.
+            health_server: HealthServer | None = None
+            if config.health.enabled:
+                health_server = HealthServer(
+                    config=config.health,
+                    bridge=bridge,
+                    mqtt_client=mqtt_client,
+                    device_client=device_client,
+                )
+                await health_server.start()
 
-            logger.info("kermi2mqtt is running. Press Ctrl+C to stop.")
-
-            # Wait for shutdown signal
-            await shutdown_event.wait()
-
-            # Stop bridge gracefully
-            logger.info("Shutting down gracefully...")
-            bridge.stop()
-
-            # Wait for bridge to finish
             try:
-                await asyncio.wait_for(bridge_task, timeout=10.0)
-            except TimeoutError:
-                logger.warning("Bridge shutdown timed out")
-                bridge_task.cancel()
+                # Run bridge in a task
+                bridge_task = asyncio.create_task(bridge.run())
+
+                logger.info("kermi2mqtt is running. Press Ctrl+C to stop.")
+
+                # Wait for shutdown signal
+                await shutdown_event.wait()
+
+                # Stop bridge gracefully
+                logger.info("Shutting down gracefully...")
+                bridge.stop()
+
+                # Wait for bridge to finish
+                try:
+                    await asyncio.wait_for(bridge_task, timeout=10.0)
+                except TimeoutError:
+                    logger.warning("Bridge shutdown timed out")
+                    bridge_task.cancel()
+            finally:
+                if health_server is not None:
+                    await health_server.stop()
 
         logger.info("Shutdown complete")
         return 0

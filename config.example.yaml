@@ -81,6 +81,17 @@ safety:
   # Validates all write commands against safe ranges
   enable_validation: true
 
+# Health check HTTP server (used for Kubernetes liveness/readiness probes).
+# Leave on by default — it's harmless outside k8s, and the only cost is an
+# idle port. Set enabled: false to disable.
+health:
+  enabled: true
+  host: "0.0.0.0"
+  port: 8080
+  # Seconds since the last successful poll before /healthz fails.
+  # Defaults to max(2 * integration.poll_interval, 60) when unset.
+  # stale_after_seconds: 90
+
 # Advanced settings
 advanced:
   # Reconnection settings

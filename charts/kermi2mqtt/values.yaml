@@ -43,6 +43,42 @@ resources:
     cpu: 10m
     memory: 64Mi
 
+# -- Liveness probe (detects a wedged bridge: socket wedge, DNS flap, stale poll).
+# -- Requires config.health.enabled: true.
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: health
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 5
+
+# -- Readiness probe. 200 once MQTT + device clients have each connected at
+# -- least once; sticky after that (liveness handles later wedges).
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: health
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+
+# -- Startup probe. Tolerates slow first connect without tripping liveness.
+startupProbe:
+  httpGet:
+    path: /readyz
+    port: health
+  periodSeconds: 10
+  failureThreshold: 30
+
+# -- Optional ClusterIP service exposing the health port (useful for external
+# -- scrapers or ad-hoc curls). Probes don't need this.
+service:
+  enabled: false
+  type: ClusterIP
+  port: 8080
+
 nodeSelector: {}
 
 tolerations: []
@@ -104,6 +140,18 @@ config:
 
   # -- Polling interval in seconds
   pollingInterval: 30
+
+  # -- Health check HTTP server (required for liveness/readiness probes)
+  health:
+    # -- Enable the health server
+    enabled: true
+    # -- Bind address (0.0.0.0 so kubelet can reach it)
+    host: "0.0.0.0"
+    # -- Bind port (must match the livenessProbe/readinessProbe containerPort)
+    port: 8080
+    # -- Seconds since last successful poll before /healthz fails.
+    # -- null -> defaults to max(2 * pollingInterval, 60).
+    staleAfterSeconds: null
 
 # -- MQTT authentication (stored in Secret)
 mqttAuth:

@@ -55,6 +55,7 @@ class MQTTClient:
 
         self.client: aiomqtt.Client | None = None
         self._connected = False
+        self._has_ever_connected = False
         self._reconnect_delay = advanced_config.mqtt_reconnect_delay
         self._max_reconnect_delay = advanced_config.mqtt_max_reconnect_delay
 
@@ -75,6 +76,11 @@ class MQTTClient:
     def is_connected(self) -> bool:
         """Check if client is connected."""
         return self._connected
+
+    @property
+    def has_ever_connected(self) -> bool:
+        """True once the client has completed at least one successful connect."""
+        return self._has_ever_connected
 
     async def connect(self) -> None:
         """
@@ -120,6 +126,7 @@ class MQTTClient:
 
             await self.client.__aenter__()
             self._connected = True
+            self._has_ever_connected = True
             logger.info("MQTT connection established successfully")
 
         except Exception as e:

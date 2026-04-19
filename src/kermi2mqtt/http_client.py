@@ -68,6 +68,7 @@ class HttpClient:
         self.storage_dhw: HttpDevice | None = None  # Unit 51
 
         self._connected = False
+        self._has_ever_connected = False
         self._reconnect_task: asyncio.Task[None] | None = None
 
     async def __aenter__(self) -> "HttpClient":
@@ -83,6 +84,11 @@ class HttpClient:
     def is_connected(self) -> bool:
         """Check if client is connected."""
         return self._connected
+
+    @property
+    def has_ever_connected(self) -> bool:
+        """True once the client has completed at least one successful connect."""
+        return self._has_ever_connected
 
     @property
     def devices(self) -> list[HttpDevice]:
@@ -137,6 +143,7 @@ class HttpClient:
                 logger.info(f"Connection verified - outdoor temperature: {outdoor_temp}°C")
 
             self._connected = True
+            self._has_ever_connected = True
             self.current_reconnect_delay = self.initial_reconnect_delay
             logger.info("HTTP connection established successfully")
 

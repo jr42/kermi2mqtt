@@ -43,3 +43,11 @@ data:
 
     logging:
       level: {{ .Values.config.logLevel | quote }}
+
+    health:
+      enabled: {{ .Values.config.health.enabled }}
+      host: {{ .Values.config.health.host | quote }}
+      port: {{ .Values.config.health.port }}
+      {{- if .Values.config.health.staleAfterSeconds }}
+      stale_after_seconds: {{ .Values.config.health.staleAfterSeconds }}
+      {{- end }}

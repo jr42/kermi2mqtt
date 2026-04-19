@@ -127,6 +127,22 @@ class AdvancedConfig(BaseModel):
     mqtt_retain_state: bool = Field(False)
 
 
+class HealthConfig(BaseModel):
+    """HTTP health-check server configuration."""
+
+    enabled: bool = Field(True, description="Enable /healthz HTTP server")
+    host: str = Field("0.0.0.0", description="Bind address")  # noqa: S104
+    port: int = Field(8080, description="Bind port", ge=1, le=65535)
+    stale_after_seconds: float | None = Field(
+        None,
+        description=(
+            "Seconds since last successful poll before /healthz fails. "
+            "Defaults to max(2 * poll_interval, 60)."
+        ),
+        ge=1.0,
+    )
+
+
 class Config(BaseModel):
     """Complete application configuration."""
 
@@ -137,6 +153,7 @@ class Config(BaseModel):
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     safety: SafetyConfig = Field(default_factory=SafetyConfig)
     advanced: AdvancedConfig = Field(default_factory=AdvancedConfig)
+    health: HealthConfig = Field(default_factory=HealthConfig)
 
 
 def load_config(config_path: str | Path) -> Config:

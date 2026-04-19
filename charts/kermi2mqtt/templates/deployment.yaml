@@ -68,8 +68,24 @@ spec:
             {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          # Note: No HTTP endpoints for probes - this is a bridge application
-          # Kubernetes will restart if the process exits
+          {{- if .Values.config.health.enabled }}
+          ports:
+            - name: health
+              containerPort: {{ .Values.config.health.port }}
+              protocol: TCP
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- end }}
       volumes:
         - name: config
           configMap:

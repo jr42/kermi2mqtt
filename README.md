@@ -194,6 +194,32 @@ All entities are grouped under a single **Device** in Home Assistant.
                             └─────────────────┘
 ```
 
+## Health Checks
+
+kermi2mqtt exposes a lightweight HTTP server (default `0.0.0.0:8080`) with three endpoints intended for Kubernetes probes or external monitoring:
+
+| Path        | Purpose     | 200 when                                                                                              | 503 when                                                         |
+| ----------- | ----------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `/healthz`  | Liveness    | MQTT **and** device clients are connected **and** a poll cycle succeeded within `stale_after_seconds` | any of those is false                                            |
+| `/readyz`   | Readiness   | MQTT **and** device clients have each completed at least one successful connect (sticky)              | either client has never connected yet                            |
+| `/status`   | Debug JSON  | always 200 — returns the raw signals (`{mqtt, device, last_poll_seconds_ago, ...}`)                   | —                                                                |
+
+The staleness check on `/healthz` is the load-bearing part: `is_connected` can report `True` while a socket is wedged (DNS flap, CNI identity drift, upstream hostname change), so liveness additionally requires that `poll_and_publish()` has completed recently. This is exactly the failure mode — logs fill with reconnect errors but nothing is published and the pod stays `Ready 1/1` — that a plain process-alive check misses.
+
+### Configuration
+
+```yaml
+health:
+  enabled: true           # set false to disable the server entirely
+  host: "0.0.0.0"
+  port: 8080
+  stale_after_seconds: null  # null -> max(2 * poll_interval, 60)
+```
+
+### Helm chart behaviour (migration)
+
+Starting with chart `0.1.3`, `livenessProbe`, `readinessProbe`, and `startupProbe` are **enabled by default** pointing at the new endpoints. This is a behaviour change: pods will now be restarted by Kubernetes on persistent connectivity failure (~2.5 min of `/healthz` 503s at default settings). If you were running an earlier chart and have custom probe values in your `values.yaml`, review them. To keep the previous "no probes" behaviour, set `config.health.enabled: false`.
+
 ## Development
 
 ### Setup
