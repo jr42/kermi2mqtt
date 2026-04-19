@@ -76,9 +76,7 @@ class HealthServer:
         await self._runner.setup()
         self._site = web.TCPSite(self._runner, self.config.host, self.config.port)
         await self._site.start()
-        logger.info(
-            f"Health server listening on http://{self.config.host}:{self.config.port}"
-        )
+        logger.info(f"Health server listening on http://{self.config.host}:{self.config.port}")
 
     async def stop(self) -> None:
         """Stop the HTTP server cleanly."""
@@ -119,9 +117,7 @@ class HealthServer:
 
     async def _readyz(self, _request: web.Request) -> web.Response:
         ready = self.mqtt.has_ever_connected and self.device.has_ever_connected
-        return web.json_response(
-            self._snapshot(time.monotonic()), status=200 if ready else 503
-        )
+        return web.json_response(self._snapshot(time.monotonic()), status=200 if ready else 503)
 
     async def _status(self, _request: web.Request) -> web.Response:
         return web.json_response(self._snapshot(time.monotonic()))
