@@ -23,6 +23,11 @@ serviceAccount:
 
 podAnnotations: {}
 
+# -- Pod priority class. Set to a cluster PriorityClass name to influence
+# -- scheduling/preemption (e.g. `kluster-high` for a household-critical
+# -- bridge). Empty = default (no priority).
+priorityClassName: ""
+
 podSecurityContext: {}
   # fsGroup: 2000
 
