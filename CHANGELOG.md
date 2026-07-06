@@ -5,6 +5,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] — 2026-07-06
+
+Chart-feature release. No runtime/daemon changes — the Python package and
+Docker image are functionally identical to 0.1.3; the version was bumped for
+the unified release across package, image, and Helm chart.
+
+### Added
+
+- Optional `priorityClassName` value on the Helm chart, rendered into the
+  Deployment pod spec when set (empty by default = no change). Lets operators
+  assign a Kubernetes scheduling priority class — e.g. to protect a
+  household-critical bridge from preemption on a busy cluster.
+
 ## [0.1.3] — 2026-04-19
 
 ### Added
