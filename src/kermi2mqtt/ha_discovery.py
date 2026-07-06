@@ -169,7 +169,10 @@ def _should_publish_attribute(
         return False
 
     # RULE 1.9: Filter StorageSystem attributes not available via HTTP API
-    if device_type in ("storage_heating", "storage_dhw") and attribute.method_name in STORAGE_HTTP_UNAVAILABLE:
+    if (
+        device_type in ("storage_heating", "storage_dhw")
+        and attribute.method_name in STORAGE_HTTP_UNAVAILABLE
+    ):
         logger.debug(f"Filtering {attribute.method_name} - not available via HTTP API")
         return False
 

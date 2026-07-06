@@ -54,6 +54,7 @@ class DeviceClient(Protocol):
     async def reconnect_with_backoff(self) -> None: ...
     async def read_all_devices(self) -> dict[str, dict[str, Any]]: ...
 
+
 logger = logging.getLogger(__name__)
 
 # Attribute filtering constants for StorageSystem devices
@@ -395,7 +396,10 @@ class Bridge:
                 await self._publish_device_state(device, device_data)
 
                 # For IFM device with HTTP connection, also poll and publish alarms and scenes
-                if device.device_type == "ifm" and self.config.integration.connection_type == "http":
+                if (
+                    device.device_type == "ifm"
+                    and self.config.integration.connection_type == "http"
+                ):
                     await self._poll_and_publish_alarms(device)
                     await self._publish_scene_states(device)
 
@@ -547,9 +551,7 @@ class Bridge:
             history_topic = f"{ifm_device.mqtt_base_topic}/sensors/alarm_history_count"
             await self.mqtt.publish_state(history_topic, str(history_count))
 
-            logger.debug(
-                f"Alarm status: {alarm_count} active, {history_count} in history"
-            )
+            logger.debug(f"Alarm status: {alarm_count} active, {history_count} in history")
 
         except Exception as e:
             logger.error(f"Failed to poll alarms: {e}")
@@ -648,7 +650,9 @@ class Bridge:
                     await self._publish_command_error(topic, error_msg)
                     return
 
-                logger.info(f"✓ Scene {scene_name} {'enabled' if payload.upper() == 'ON' else 'disabled'}")
+                logger.info(
+                    f"✓ Scene {scene_name} {'enabled' if payload.upper() == 'ON' else 'disabled'}"
+                )
 
                 # Re-publish scene states to update HA
                 ifm_device = next((d for d in self.devices if d.device_type == "ifm"), None)

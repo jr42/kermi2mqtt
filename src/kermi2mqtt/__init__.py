@@ -5,7 +5,7 @@ A Python async service that bridges Kermi heat pumps to MQTT for home automation
 with Home Assistant auto-discovery support.
 """
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 __author__ = "kermi2mqtt contributors"
 __license__ = "Apache-2.0"
 

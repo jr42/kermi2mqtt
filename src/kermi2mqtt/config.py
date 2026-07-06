@@ -146,8 +146,12 @@ class HealthConfig(BaseModel):
 class Config(BaseModel):
     """Complete application configuration."""
 
-    modbus: ModbusConfig | None = Field(None, description="Modbus configuration (required if connection_type='modbus')")
-    http: HttpConfig | None = Field(None, description="HTTP configuration (required if connection_type='http')")
+    modbus: ModbusConfig | None = Field(
+        None, description="Modbus configuration (required if connection_type='modbus')"
+    )
+    http: HttpConfig | None = Field(
+        None, description="HTTP configuration (required if connection_type='http')"
+    )
     mqtt: MQTTConfig
     integration: IntegrationConfig = Field(default_factory=IntegrationConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
@@ -210,7 +214,9 @@ def load_config(config_path: str | Path) -> Config:
     if "modbus" in config_dict and "http" not in config_dict:
         # Check if connection_type is explicitly set to http
         integration = config_dict.get("integration", {})
-        conn_type = integration.get("connection_type", "modbus")  # Default to modbus for backward compat
+        conn_type = integration.get(
+            "connection_type", "modbus"
+        )  # Default to modbus for backward compat
 
         if conn_type == "http":
             # Auto-create http config from modbus host
