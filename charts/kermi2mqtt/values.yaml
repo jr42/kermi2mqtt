@@ -23,6 +23,9 @@ serviceAccount:
 
 podAnnotations: {}
 
+# -- Additional labels for the pod template (e.g. ballast enrollment label).
+podLabels: {}
+
 # -- Pod priority class. Set to a cluster PriorityClass name to influence
 # -- scheduling/preemption (e.g. `kluster-high` for a household-critical
 # -- bridge). Empty = default (no priority).
